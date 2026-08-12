@@ -3,7 +3,6 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 import {
   ClickedApplyCustomSetup,
   ClickedCustomTile,
-  ClickedPlayAgain,
   ClickedReset,
   ClickedToggleCustomSetup,
   type Message,
@@ -87,26 +86,5 @@ export const controlsView = (
         ],
       ),
       ...(model.isCustomSetupMode ? [customSetupView(model, h)] : []),
-      ...(model.phase._tag === 'Completed'
-        ? [
-            h.div(
-              [h.Class('solution-status')],
-              [
-                h.h3([], ['🎉 Solution Reached!']),
-                h.p([], [
-                  `All tiles are now ${model.gameState[0] ? 'ON' : 'OFF'}`,
-                ]),
-                h.button(
-                  [
-                    h.Type('button'),
-                    h.Class('play-again-button'),
-                    h.OnClick(ClickedPlayAgain()),
-                  ],
-                  ['Play Again'],
-                ),
-              ],
-            ),
-          ]
-        : []),
     ],
   )

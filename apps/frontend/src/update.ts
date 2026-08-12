@@ -18,26 +18,17 @@ const nextPhase = (
   model: Model,
   gameState: Model['gameState'],
 ): GamePhase => {
-  if (!isAllSame(gameState)) {
-    return model.phase
-  }
-
-  const uniformValue = gameState[0]
-  if (model.phase._tag === 'SeekingFirstUniform') {
-    return GamePhaseSchema.cases.SeekingOpposite.make({
-      firstUniformValue: uniformValue,
-    })
-  }
-
-  if (
-    model.phase._tag === 'SeekingOpposite' &&
-    uniformValue !== model.phase.firstUniformValue
+  const allSame = isAllSame(gameState)
+  if (allSame && model.phase._tag === 'Initial') {
+    return GamePhaseSchema.cases.PhaseOne.make({})
+  } else if (
+    allSame &&
+    (model.phase._tag === 'PhaseOne' || model.phase._tag === 'PhaseTwo')
   ) {
-    return GamePhaseSchema.cases.Completed.make({
-      firstUniformValue: model.phase.firstUniformValue,
-    })
+    return GamePhaseSchema.cases.PhaseTwo.make({})
+  } else if (!allSame && model.phase._tag === 'PhaseTwo') {
+    return GamePhaseSchema.cases.PhaseOne.make({})
   }
-
   return model.phase
 }
 
@@ -48,12 +39,13 @@ const clickTile = (model: Model, index: TileIndex): UpdateReturn => {
   }
 
   const gameState = decodeGameState(applyMove(model.gameState, move))
+  const moveHistory = [...model.moveHistory, index]
   return [
     {
       ...model,
       gameState,
-      moveHistory: [...model.moveHistory, index],
-      phase: nextPhase(model, gameState),
+      moveHistory,
+      phase: nextPhase({ ...model, moveHistory }, gameState),
     },
     [],
   ]
@@ -82,7 +74,10 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         { ...model, showSolution: !model.showSolution },
         [],
       ],
-      ClickedReset: () => [initialModel, []],
+      ClickedReset: () => [
+        { ...model, ...startRun(initialModel.gameState) },
+        [],
+      ],
       ClickedToggleCustomSetup: () => [
         { ...model, isCustomSetupMode: !model.isCustomSetupMode },
         [],
@@ -92,6 +87,5 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         { ...model, isCustomSetupMode: false },
         [],
       ],
-      ClickedPlayAgain: () => [initialModel, []],
     }),
   )

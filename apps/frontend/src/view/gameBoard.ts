@@ -50,16 +50,6 @@ export const gameBoardView = (
           )
         }),
       ),
-      ...(model.phase._tag === 'Completed'
-        ? [
-            h.div(
-              [h.Class('solution-notification'), h.AriaLive('polite')],
-              [
-                `Solution Reached! All tiles are ${model.gameState[0] ? 'ON' : 'OFF'}`,
-              ],
-            ),
-          ]
-        : []),
       h.div(
         [h.Class('instructions')],
         [
@@ -68,9 +58,7 @@ export const gameBoardView = (
           h.p([], [
             `For example, clicking on tile ${tiles[0].id} will toggle tiles ${tiles[0].move.join(', ')}.`,
           ]),
-          h.p([], [
-            'First make every tile the same, then make them all the opposite.',
-          ]),
+          h.p([], ['Your goal is to make all tiles either ON or OFF.']),
         ],
       ),
     ],

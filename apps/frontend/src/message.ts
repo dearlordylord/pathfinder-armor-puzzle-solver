@@ -10,7 +10,6 @@ export const ClickedCustomTile = m('ClickedCustomTile', {
   index: TileIndex,
 })
 export const ClickedApplyCustomSetup = m('ClickedApplyCustomSetup')
-export const ClickedPlayAgain = m('ClickedPlayAgain')
 
 export const Message = Schema.Union([
   ClickedTile,
@@ -19,6 +18,5 @@ export const Message = Schema.Union([
   ClickedToggleCustomSetup,
   ClickedCustomTile,
   ClickedApplyCustomSetup,
-  ClickedPlayAgain,
 ])
 export type Message = typeof Message.Type

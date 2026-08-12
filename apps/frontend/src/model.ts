@@ -5,6 +5,7 @@ export const initialGameState = [false, true, false, true, false, true] as const
 
 export const TileIndex = Schema.Literals([0, 1, 2, 3, 4, 5])
 export type TileIndex = typeof TileIndex.Type
+export const decodeTileIndex = Schema.decodeUnknownSync(TileIndex)
 
 export const tiles = [
   { id: 0, move: [0, 1, 3], gridColumn: '1 / 2', gridRow: '1 / 2' },
@@ -29,9 +30,9 @@ export const GameStateSchema = Schema.Tuple([
 export const decodeGameState = Schema.decodeUnknownSync(GameStateSchema)
 
 export const GamePhase = Schema.TaggedUnion({
-  SeekingFirstUniform: {},
-  SeekingOpposite: { firstUniformValue: Schema.Boolean },
-  Completed: { firstUniformValue: Schema.Boolean },
+  Initial: {},
+  PhaseOne: {},
+  PhaseTwo: {},
 })
 export type GamePhase = typeof GamePhase.Type
 
@@ -52,15 +53,10 @@ export const startRun = (
   }
 
   const fixedGameState = decodeGameState(gameState)
-  const isUniform = fixedGameState.every(value => value === fixedGameState[0])
 
   return {
     gameState: fixedGameState,
-    phase: isUniform
-      ? GamePhase.cases.SeekingOpposite.make({
-          firstUniformValue: fixedGameState[0],
-        })
-      : GamePhase.cases.SeekingFirstUniform.make({}),
+    phase: GamePhase.cases.Initial.make({}),
     moveHistory: [],
   }
 }

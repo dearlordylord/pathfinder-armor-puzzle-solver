@@ -1,9 +1,7 @@
 import {
-  findPath,
-  isAllFalse,
   isAllSame,
-  isAllTrue,
   type Solution,
+  solution,
 } from '@app/solver'
 
 import type { Model } from './model'
@@ -11,32 +9,22 @@ import { possibleMoves } from './model'
 
 export interface GameView {
   readonly isAllSame: boolean
-  readonly solution: Solution
-  readonly solutionInfo: string
+  readonly currentSolution: Solution
+  readonly nextSolution: Solution | null
 }
 
 export const deriveGameView = (model: Model): GameView => {
-  if (model.phase._tag === 'Completed') {
-    return {
-      isAllSame: true,
-      solution: [],
-      solutionInfo: 'Puzzle completed! 🎉',
-    }
-  }
-
-  if (model.phase._tag === 'SeekingFirstUniform') {
-    return {
-      isAllSame: isAllSame(model.gameState),
-      solution: findPath(model.gameState, possibleMoves, isAllSame),
-      solutionInfo: 'First make all tiles the same.',
-    }
-  }
-
-  const target = model.phase.firstUniformValue ? isAllFalse : isAllTrue
+  const solutions = solution(model.gameState, possibleMoves)
+  const currentSolution =
+    model.phase._tag === 'PhaseTwo' ? solutions[1] : solutions[0]
+  const nextSolution =
+    model.phase._tag === 'Initial' || model.phase._tag === 'PhaseOne'
+      ? solutions[1]
+      : null
 
   return {
     isAllSame: isAllSame(model.gameState),
-    solution: findPath(model.gameState, possibleMoves, target),
-    solutionInfo: 'Now make all tiles the opposite of your first uniform board.',
+    currentSolution,
+    nextSolution,
   }
 }

@@ -35,13 +35,21 @@ describe('Pathfinder puzzle view', () => {
         'false',
       ),
       click(role('button', { name: 'Show Solution' })),
-      expect(text('First make all tiles the same.')).toExist(),
+      expect(
+        text(
+          'First make all tiles the same, then make them all the opposite',
+        ),
+      ).toExist(),
       expect(role('button', { name: 'Hide Solution' })).toHaveAttr(
         'aria-pressed',
         'true',
       ),
       click(role('button', { name: 'Hide Solution' })),
-      expect(text('First make all tiles the same.')).not.toExist(),
+      expect(
+        text(
+          'First make all tiles the same, then make them all the opposite',
+        ),
+      ).not.toExist(),
     )
   })
 
@@ -58,18 +66,22 @@ describe('Pathfinder puzzle view', () => {
     )
   })
 
-  test('reset restores the initial board', () => {
+  test('reset restores the board without closing React-local UI state', () => {
     scene(
       { update, view },
       given(initialModel),
+      click(role('button', { name: 'Show Solution' })),
+      click(role('button', { name: 'Custom Setup' })),
       click(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })),
       click(role('button', { name: 'Reset Game' })),
       expect(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })).toExist(),
       expect(role('button', { name: 'Tile 1, on, affects 1, 0' })).toExist(),
+      expect(role('button', { name: 'Hide Solution' })).toExist(),
+      expect(text('Custom Setup Mode')).toExist(),
     )
   })
 
-  test('following both solution paths completes the puzzle and Play Again resets it', () => {
+  test('following both solution paths preserves React phase behavior and keeps solving', () => {
     const [firstPath, oppositePath] = solution(initialGameState, possibleMoves)
     let state: GameState = initialGameState
     const moveSteps = [...firstPath, ...oppositePath].map(moveIndex => {
@@ -86,17 +98,22 @@ describe('Pathfinder puzzle view', () => {
     scene(
       { update, view },
       given(initialModel),
+      click(role('button', { name: 'Show Solution' })),
       ...moveSteps,
-      expect(text('🎉 Solution Reached!')).toExist(),
+      expect(
+        text('All tiles are now the same again. Complete the puzzle!'),
+      ).toExist(),
+      expect(text('Puzzle completed! 🎉')).not.toExist(),
+      expect(text('🎉 Solution Reached!')).not.toExist(),
       click(
         role('button', {
           name: `Tile 0, ${state[0] ? 'on' : 'off'}, affects 0, 1, 3`,
         }),
       ),
-      expect(text('🎉 Solution Reached!')).toExist(),
-      click(role('button', { name: 'Play Again' })),
-      expect(text('🎉 Solution Reached!')).not.toExist(),
-      expect(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })).toExist(),
+      expect(
+        text('All tiles are now the same. Next, make them all the opposite'),
+      ).toExist(),
+      expect(text('Puzzle completed! 🎉')).not.toExist(),
     )
   })
 })
