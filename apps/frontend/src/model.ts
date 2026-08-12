@@ -30,8 +30,9 @@ export const GameStateSchema = Schema.Tuple([
 export const decodeGameState = Schema.decodeUnknownSync(GameStateSchema)
 
 export const GamePhase = Schema.TaggedUnion({
-  SeekingFirstUniform: {},
-  SeekingOpposite: { targetValue: Schema.Boolean },
+  Initial: {},
+  PhaseOne: {},
+  PhaseTwo: {},
 })
 export type GamePhase = typeof GamePhase.Type
 
@@ -52,15 +53,10 @@ export const startRun = (
   }
 
   const fixedGameState = decodeGameState(gameState)
-  const isUniform = fixedGameState.every(value => value === fixedGameState[0])
 
   return {
     gameState: fixedGameState,
-    phase: isUniform
-      ? GamePhase.cases.SeekingOpposite.make({
-          targetValue: !fixedGameState[0],
-        })
-      : GamePhase.cases.SeekingFirstUniform.make({}),
+    phase: GamePhase.cases.Initial.make({}),
     moveHistory: [],
   }
 }

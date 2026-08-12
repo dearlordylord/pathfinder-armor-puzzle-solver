@@ -2,33 +2,11 @@ import { click, expect, given, role, scene, text } from 'foldkit/scene'
 import { describe, test } from 'vitest'
 import { applyMove, solution, type GameState } from '@app/solver'
 
-import { initialGameState, initialModel, possibleMoves, startRun } from './model'
+import { initialGameState, initialModel, possibleMoves } from './model'
 import { update } from './update'
 import { view } from './view'
 
 describe('Pathfinder puzzle view', () => {
-  test('removes a followed move from the visible solution', () => {
-    const model = {
-      ...initialModel,
-      ...startRun([false, false, false, false, false, false]),
-      showSolution: true,
-    }
-
-    scene(
-      { update, view },
-      given(model),
-      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
-      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
-      click(
-        role('button', {
-          name: 'Tile 0, off, affects 0, 1, 3',
-        }),
-      ),
-      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).not.toExist(),
-      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
-    )
-  })
-
   test('renders six accessible tile buttons and applies a move', () => {
     scene(
       { update, view },
@@ -103,7 +81,7 @@ describe('Pathfinder puzzle view', () => {
     )
   })
 
-  test('following both solution paths immediately offers the next path', () => {
+  test('following both solution paths preserves React phase behavior and keeps solving', () => {
     const [firstPath, oppositePath] = solution(initialGameState, possibleMoves)
     let state: GameState = initialGameState
     const moveSteps = [...firstPath, ...oppositePath].map(moveIndex => {
@@ -122,17 +100,20 @@ describe('Pathfinder puzzle view', () => {
       given(initialModel),
       click(role('button', { name: 'Show Solution' })),
       ...moveSteps,
+      expect(
+        text('All tiles are now the same again. Complete the puzzle!'),
+      ).toExist(),
       expect(text('Puzzle completed! 🎉')).not.toExist(),
       expect(text('🎉 Solution Reached!')).not.toExist(),
-      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
-      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
       click(
         role('button', {
           name: `Tile 0, ${state[0] ? 'on' : 'off'}, affects 0, 1, 3`,
         }),
       ),
-      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).not.toExist(),
-      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
+      expect(
+        text('All tiles are now the same. Next, make them all the opposite'),
+      ).toExist(),
+      expect(text('Puzzle completed! 🎉')).not.toExist(),
     )
   })
 })

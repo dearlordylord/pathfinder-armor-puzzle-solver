@@ -19,19 +19,15 @@ const nextPhase = (
   gameState: Model['gameState'],
 ): GamePhase => {
   const allSame = isAllSame(gameState)
-  if (allSame && model.phase._tag === 'SeekingFirstUniform') {
-    return GamePhaseSchema.cases.SeekingOpposite.make({
-      targetValue: !gameState[0],
-    })
-  }
-  if (
+  if (allSame && model.phase._tag === 'Initial') {
+    return GamePhaseSchema.cases.PhaseOne.make({})
+  } else if (
     allSame &&
-    model.phase._tag === 'SeekingOpposite' &&
-    gameState[0] === model.phase.targetValue
+    (model.phase._tag === 'PhaseOne' || model.phase._tag === 'PhaseTwo')
   ) {
-    return GamePhaseSchema.cases.SeekingOpposite.make({
-      targetValue: !gameState[0],
-    })
+    return GamePhaseSchema.cases.PhaseTwo.make({})
+  } else if (!allSame && model.phase._tag === 'PhaseTwo') {
+    return GamePhaseSchema.cases.PhaseOne.make({})
   }
   return model.phase
 }

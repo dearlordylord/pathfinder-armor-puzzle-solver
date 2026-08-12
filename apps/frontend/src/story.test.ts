@@ -1,5 +1,6 @@
 import { Command, given, message, model, story } from 'foldkit/story'
 import { describe, expect, test } from 'vitest'
+import { solution } from '@app/solver'
 
 import {
   ClickedApplyCustomSetup,
@@ -9,7 +10,14 @@ import {
   ClickedToggleCustomSetup,
   ClickedToggleSolution,
 } from './message'
-import { GamePhase, initialGameState, initialModel, startRun } from './model'
+import {
+  GamePhase,
+  decodeTileIndex,
+  initialGameState,
+  initialModel,
+  possibleMoves,
+  startRun,
+} from './model'
 import { update } from './update'
 
 describe('game update', () => {
@@ -27,7 +35,7 @@ describe('game update', () => {
     )
   })
 
-  test('the first uniform board establishes its opposite target', () => {
+  test('the first uniform board advances Initial to PhaseOne', () => {
     story(
       update,
       given({
@@ -37,46 +45,65 @@ describe('game update', () => {
       message(ClickedTile({ index: 0 })),
       model(next => {
         expect(next.gameState).toEqual([true, true, true, true, true, true])
-        expect(next.phase).toEqual(
-          GamePhase.cases.SeekingOpposite.make({ targetValue: false }),
-        )
+        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
       }),
     )
   })
 
-  test('the opposite target remains stable while the board is mixed', () => {
+  test('leaving a uniform board in PhaseOne stays in PhaseOne', () => {
+    story(
+      update,
+      given({
+        ...initialModel,
+        gameState: [true, true, true, true, true, true],
+        phase: GamePhase.cases.PhaseOne.make({}),
+      }),
+      message(ClickedTile({ index: 0 })),
+      model(next => {
+        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
+      }),
+    )
+  })
+
+  test('a later uniform board advances PhaseOne to PhaseTwo', () => {
+    story(
+      update,
+      given({
+        ...initialModel,
+        gameState: [false, false, true, false, true, true],
+        phase: GamePhase.cases.PhaseOne.make({}),
+      }),
+      message(ClickedTile({ index: 0 })),
+      model(next => {
+        expect(next.phase).toEqual(GamePhase.cases.PhaseTwo.make({}))
+      }),
+    )
+  })
+
+  test('leaving a uniform board in PhaseTwo returns to PhaseOne', () => {
     story(
       update,
       given({
         ...initialModel,
         gameState: [false, false, false, false, false, false],
-        phase: GamePhase.cases.SeekingOpposite.make({ targetValue: true }),
+        phase: GamePhase.cases.PhaseTwo.make({}),
       }),
       message(ClickedTile({ index: 0 })),
       model(next => {
-        expect(next.phase).toEqual(
-          GamePhase.cases.SeekingOpposite.make({ targetValue: true }),
-        )
+        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
       }),
     )
   })
 
-  test('reaching the opposite board establishes the next opposite target', () => {
-    story(
-      update,
-      given({
-        ...initialModel,
-        gameState: [true, true, false, true, false, false],
-        phase: GamePhase.cases.SeekingOpposite.make({ targetValue: false }),
-      }),
-      message(ClickedTile({ index: 0 })),
-      model(next => {
-        expect(next.gameState).toEqual([false, false, false, false, false, false])
-        expect(next.phase).toEqual(
-          GamePhase.cases.SeekingOpposite.make({ targetValue: true }),
-        )
-      }),
+  test('the React completion branch remains unreachable through play', () => {
+    const [firstPath, oppositePath] = solution(initialGameState, possibleMoves)
+    const finalModel = [...firstPath, ...oppositePath].reduce(
+      (current, index) =>
+        update(current, ClickedTile({ index: decodeTileIndex(index) }))[0],
+      initialModel,
     )
+
+    expect(finalModel.phase).toEqual(GamePhase.cases.PhaseTwo.make({}))
   })
 
   test('custom editing changes one tile and resets game progress', () => {
@@ -84,26 +111,24 @@ describe('game update', () => {
       update,
       given({
         ...initialModel,
-        phase: GamePhase.cases.SeekingOpposite.make({ targetValue: false }),
+        phase: GamePhase.cases.PhaseTwo.make({}),
         moveHistory: [2, 4],
         isCustomSetupMode: true,
       }),
       message(ClickedCustomTile({ index: 1 })),
       model(next => {
         expect(next.gameState).toEqual([false, false, false, true, false, true])
-        expect(next.phase).toEqual(
-          GamePhase.cases.SeekingFirstUniform.make({}),
-        )
+        expect(next.phase).toEqual(GamePhase.cases.Initial.make({}))
         expect(next.moveHistory).toEqual([])
         expect(next.isCustomSetupMode).toBe(true)
       }),
     )
   })
 
-  test('a uniform custom state immediately targets its opposite', () => {
+  test('even a uniform custom state starts in Initial', () => {
     expect(startRun([false, false, false, false, false, false])).toEqual({
       gameState: [false, false, false, false, false, false],
-      phase: GamePhase.cases.SeekingOpposite.make({ targetValue: true }),
+      phase: GamePhase.cases.Initial.make({}),
       moveHistory: [],
     })
   })
@@ -112,7 +137,7 @@ describe('game update', () => {
     const changedModel = {
       ...initialModel,
       gameState: [true, true, true, true, true, true] as const,
-      phase: GamePhase.cases.SeekingOpposite.make({ targetValue: false }),
+      phase: GamePhase.cases.PhaseTwo.make({}),
       moveHistory: [1, 2],
       showSolution: true,
       isCustomSetupMode: true,
@@ -124,9 +149,7 @@ describe('game update', () => {
       message(ClickedReset()),
       model(next => {
         expect(next.gameState).toEqual(initialGameState)
-        expect(next.phase).toEqual(
-          GamePhase.cases.SeekingFirstUniform.make({}),
-        )
+        expect(next.phase).toEqual(GamePhase.cases.Initial.make({}))
         expect(next.moveHistory).toEqual([])
         expect(next.showSolution).toBe(true)
         expect(next.isCustomSetupMode).toBe(true)
