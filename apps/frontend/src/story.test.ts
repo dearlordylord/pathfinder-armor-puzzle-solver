@@ -139,7 +139,7 @@ describe('game update', () => {
     )
   })
 
-  test('completed-board clicks are ignored', () => {
+  test('tiles remain playable after completion', () => {
     const completedModel = {
       ...initialModel,
       gameState: [false, false, false, false, false, false] as const,
@@ -151,7 +151,9 @@ describe('game update', () => {
       given(completedModel),
       message(ClickedTile({ index: 0 })),
       model(next => {
-        expect(next).toBe(completedModel)
+        expect(next.gameState).toEqual([true, true, false, true, false, false])
+        expect(next.phase).toEqual(completedModel.phase)
+        expect(next.moveHistory).toEqual([0])
       }),
     )
   })

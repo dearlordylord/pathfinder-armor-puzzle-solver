@@ -43,7 +43,7 @@ const nextPhase = (
 
 const clickTile = (model: Model, index: TileIndex): UpdateReturn => {
   const move = possibleMoves[index]
-  if (move === undefined || model.phase._tag === 'Completed') {
+  if (move === undefined) {
     return [model, []]
   }
 

@@ -88,6 +88,12 @@ describe('Pathfinder puzzle view', () => {
       given(initialModel),
       ...moveSteps,
       expect(text('🎉 Solution Reached!')).toExist(),
+      click(
+        role('button', {
+          name: `Tile 0, ${state[0] ? 'on' : 'off'}, affects 0, 1, 3`,
+        }),
+      ),
+      expect(text('🎉 Solution Reached!')).toExist(),
       click(role('button', { name: 'Play Again' })),
       expect(text('🎉 Solution Reached!')).not.toExist(),
       expect(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })).toExist(),

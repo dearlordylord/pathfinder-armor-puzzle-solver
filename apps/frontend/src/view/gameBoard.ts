@@ -29,7 +29,6 @@ export const gameBoardView = (
               }),
               h.AriaLabel(label),
               h.AriaPressed(isActive ? 'true' : 'false'),
-              h.Disabled(model.phase._tag === 'Completed'),
               h.OnClick(ClickedTile({ index: tile.id })),
             ],
             [
