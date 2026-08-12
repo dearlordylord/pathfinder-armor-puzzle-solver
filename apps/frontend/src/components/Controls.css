@@ -120,6 +120,9 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
 }
 
 .custom-tile:hover {

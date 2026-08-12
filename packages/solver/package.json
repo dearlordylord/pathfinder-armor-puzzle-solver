@@ -15,12 +15,9 @@
     "build": "tsc",
     "test": "vitest run"
   },
-  "dependencies": {
-    "fp-ts": "^2.16.2"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3",
-    "vitest": "^1.2.1"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.9"
   }
 }

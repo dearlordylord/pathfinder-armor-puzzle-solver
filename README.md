@@ -4,13 +4,12 @@
 
 # Pathfinder Puzzle 1 Armor Solver
 
-A TypeScript monorepo using pnpm workspaces with a solver library and React frontend.
+A TypeScript monorepo using pnpm workspaces with a solver library and a native Foldkit frontend.
 
 ## Project Structure
 
 - `packages/solver`: Core solver library
-- `packages/state`: State management library
-- `apps/frontend`: React frontend application
+- `apps/frontend`: Foldkit frontend application with an immutable Effect Schema model
 
 ## Setup
 
@@ -29,18 +28,16 @@ pnpm install
 - `pnpm --filter @app/solver build` - Build the solver library
 - `pnpm --filter @app/solver test` - Run the solver library tests
 
-### State Management
-- `pnpm --filter @app/state build` - Build the state management library
-- `pnpm --filter @app/state test` - Run the state management tests
-
 ### Frontend
 - `pnpm --filter frontend dev` - Start the frontend development server
+- `pnpm --filter frontend typecheck` - Type-check the frontend
+- `pnpm --filter frontend test` - Run Foldkit Story and Scene tests
 - `pnpm --filter frontend build` - Build the frontend for production
 - `pnpm --filter frontend preview` - Preview the production build
 
 ## The Game
 
-The game consists of 6 boolean values (tiles), each with associated "moves" that toggle specific tiles. The goal is to make all tiles either ON or OFF. The frontend application provides:
+The game consists of 6 boolean values (tiles), each with associated "moves" that toggle specific tiles. First make every tile the same, then make that uniform board its opposite. The frontend application provides:
 
 - Interactive game board
 - Custom setup mode to set initial conditions
@@ -64,4 +61,3 @@ This project is set up for Vercel deployment:
 5. Click "Deploy"
 
 The build process will build all workspace packages and copy the frontend to the root dist directory.
-

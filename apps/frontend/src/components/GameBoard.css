@@ -44,6 +44,15 @@
   max-width: 100%;
   font-size: 0.9rem;
   min-width: 0;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.game-tile:focus-visible,
+.custom-tile:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
 }
 
 .game-tile:hover {

@@ -1,18 +1,23 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { foldkit } from '@foldkit/vite-plugin'
+import { resolve } from 'node:path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [foldkit()],
   resolve: {
     alias: {
-      '@app/solver': resolve(__dirname, '../../packages/solver/src/index.ts'),
-      '@app/state': resolve(__dirname, '../../packages/state/src/index.ts')
+      '@app/solver': resolve(
+        import.meta.dirname,
+        '../../packages/solver/src/index.ts',
+      ),
     }
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true
-  }
+    emptyOutDir: true,
+  },
+  optimizeDeps: {
+    entries: ['src/entry.ts'],
+  },
 })

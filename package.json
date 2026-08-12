@@ -4,18 +4,22 @@
   "description": "A simple TypeScript project",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
-    "build": "pnpm -r build && cp -r apps/frontend/dist .",
+    "build": "pnpm -r build && rm -rf dist && cp -r apps/frontend/dist dist",
     "dev:frontend": "pnpm --filter frontend dev",
+    "lint": "pnpm -r lint",
     "test": "pnpm -r test"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "typescript": "^5.3.3"
+    "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@8.15.0"
 }

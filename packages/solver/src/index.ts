@@ -1,20 +1,16 @@
-import { pipe } from 'fp-ts/lib/function.js';
-import * as A from 'fp-ts/lib/Array.js';
-import * as O from 'fp-ts/lib/Option.js';
-
 // n bools
-export type GameState = boolean[]
+export type GameState = ReadonlyArray<boolean>
 // unique indices of GameState, and len(Move) < len(GameState)
-export type Move = number[]
+export type Move = ReadonlyArray<number>
 // len(PossibleMoves) <= len(GameState)
-export type PossibleMoves = Move[]
+export type PossibleMoves = ReadonlyArray<Move>
 
 // indices of Moves in PossibleMoves, can repeat, length unbounded
-export type Solution = number[]
+export type Solution = ReadonlyArray<number>
 // one Solution is "all booleans in GameState are true"
 // another Solution is "all booleans in GameState are false"
 // order of Solutions doesn't matter
-export type Solutions = [Solution, Solution]
+export type Solutions = readonly [Solution, Solution]
 
 // Apply a move to a game state (pure function)
 export const applyMove = (state: GameState, move: Move): GameState => {
@@ -25,12 +21,7 @@ export const applyMove = (state: GameState, move: Move): GameState => {
 
 // Check if all values in the state are the same
 export const isAllSame = (state: GameState): boolean =>
-  pipe(
-    state,
-    A.head,
-    O.map(head => state.every(value => value === head)),
-    O.getOrElse(() => true) // Empty array is considered all same
-  );
+  state.length === 0 || state.every(value => value === state[0]);
 
 // Check if all values in the state are true/false
 export const isAllTrue = (state: GameState): boolean => state.every(value => value === true);
@@ -72,28 +63,17 @@ export const findPath = (
 };
 
 // Main solution function - using pipe pattern
-export const solution = (state: GameState, possibleMoves: PossibleMoves): Solutions =>
-  pipe(
-    // First, find path to make all booleans the same
-    findPath(state, possibleMoves, isAllSame),
-    
-    // Then compute state after first solution
-    firstSolution => {
-      const stateAfterFirst = firstSolution.reduce(
-        (currentState, moveIndex) => applyMove(currentState, possibleMoves[moveIndex]),
-        [...state]
-      );
-      
-      // Determine the target for second solution
-      const targetForSecond = !isAllTrue(stateAfterFirst);
-      
-      // Find the second solution
-      const secondSolution = findPath(
-        stateAfterFirst,
-        possibleMoves,
-        targetForSecond ? isAllTrue : isAllFalse
-      );
-      
-      return [firstSolution, secondSolution] as Solutions;
-    }
+export const solution = (state: GameState, possibleMoves: PossibleMoves): Solutions => {
+  const firstSolution = findPath(state, possibleMoves, isAllSame);
+  const stateAfterFirst = firstSolution.reduce<GameState>(
+    (currentState, moveIndex) => applyMove(currentState, possibleMoves[moveIndex]),
+    state
   );
+  const secondSolution = findPath(
+    stateAfterFirst,
+    possibleMoves,
+    isAllTrue(stateAfterFirst) ? isAllFalse : isAllTrue
+  );
+
+  return [firstSolution, secondSolution];
+};

@@ -1,8 +1,8 @@
-export type GameState = boolean[];
-export type Move = number[];
-export type PossibleMoves = Move[];
-export type Solution = number[];
-export type Solutions = [Solution, Solution];
+export type GameState = ReadonlyArray<boolean>;
+export type Move = ReadonlyArray<number>;
+export type PossibleMoves = ReadonlyArray<Move>;
+export type Solution = ReadonlyArray<number>;
+export type Solutions = readonly [Solution, Solution];
 export declare const applyMove: (state: GameState, move: Move) => GameState;
 export declare const isAllSame: (state: GameState) => boolean;
 export declare const isAllTrue: (state: GameState) => boolean;
