@@ -20,4 +20,7 @@ export default defineConfig({
   optimizeDeps: {
     entries: ['src/entry.ts'],
   },
+  server: {
+    allowedHosts: ['f09fe046f4d2.orb.local'],
+  },
 })
