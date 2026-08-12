@@ -73,9 +73,12 @@
 }
 
 .apply-custom-button {
+  display: block;
+  width: fit-content;
+  flex: none;
   background-color: #4caf50;
   color: white;
-  margin-top: 1rem;
+  margin: 1rem auto 0;
 }
 
 .apply-custom-button:hover {
