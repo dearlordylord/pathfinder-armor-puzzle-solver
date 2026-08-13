@@ -11,11 +11,13 @@ const solutionInfo = (model: Model, allSame: boolean): string => {
     case 'Initial':
       return 'First make all tiles the same, then make them all the opposite'
     case 'PhaseOne':
-      return 'All tiles are now the same. Next, make them all the opposite'
+      return allSame
+        ? 'All tiles are now the same. Next, make them all the opposite'
+        : `Continue making all tiles ${model.phase.targetValue ? 'ON' : 'OFF'}`
     case 'PhaseTwo':
       return allSame
         ? 'All tiles are now the same again. Complete the puzzle!'
-        : 'First make all tiles the same again'
+        : `Restore all tiles ${model.phase.targetValue ? 'ON' : 'OFF'} to complete the puzzle`
   }
 }
 
@@ -50,7 +52,7 @@ const currentSolutionHeading = (model: Model): string => {
     case 'PhaseTwo':
       return 'Step 3: Make all tiles the same again'
     case 'PhaseOne':
-      return ''
+      return 'Step 2: Make all tiles opposite'
   }
 }
 

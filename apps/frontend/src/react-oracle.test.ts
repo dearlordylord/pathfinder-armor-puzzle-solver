@@ -252,7 +252,7 @@ const reactObservable = (state: ReactState) => {
 const foldkitViews = new Map<string, ReturnType<typeof deriveGameView>>()
 
 const foldkitObservable = (model: Model) => {
-  const key = JSON.stringify([model.gameState, model.phase._tag])
+  const key = JSON.stringify([model.gameState, model.phase])
   let derived = foldkitViews.get(key)
   if (derived === undefined) {
     derived = deriveGameView(model)
@@ -270,8 +270,36 @@ const foldkitObservable = (model: Model) => {
   }
 }
 
-const assertParity = (react: ReactState, foldkit: Model): void => {
-  expect(foldkitObservable(foldkit)).toEqual(reactObservable(react))
+const unchangedReactObservable = (state: ReactState) => ({
+  gameState: state.gameState,
+  moveHistory: state.moveHistory,
+  showSolution: state.showSolution,
+  isCustomSetupMode: state.isCustomSetupMode,
+})
+
+const unchangedFoldkitObservable = (model: Model) => ({
+  gameState: model.gameState,
+  moveHistory: model.moveHistory,
+  showSolution: model.showSolution,
+  isCustomSetupMode: model.isCustomSetupMode,
+})
+
+const assertUnchangedParity = (react: ReactState, foldkit: Model): void => {
+  expect(unchangedFoldkitObservable(foldkit)).toEqual(
+    unchangedReactObservable(react),
+  )
+}
+
+const assertTargetSolution = (model: Model): void => {
+  if (model.phase._tag === 'Initial') return
+  const { targetValue } = model.phase
+
+  const solved = deriveGameView(model).currentSolution.reduce<GameState>(
+    (state, moveIndex) =>
+      applyMove(state, possibleMoves[moveIndex] ?? []),
+    model.gameState,
+  )
+  expect(solved.every(value => value === targetValue)).toBe(true)
 }
 
 const allActions: ReadonlyArray<UserAction> = [
@@ -322,7 +350,7 @@ describe('React migration differential oracle', () => {
     }
   })
 
-  test('recommends React’s recomputed shortest path after a partial Step 2 path', () => {
+  test('intentionally keeps the opposite target where React abandons it', () => {
     const uniformReact: ReactState = {
       ...initialReactState(),
       gameState: [true, true, true, true, true, true],
@@ -331,7 +359,7 @@ describe('React migration differential oracle', () => {
     const uniformFoldkit: Model = {
       ...initialModel,
       gameState: [true, true, true, true, true, true],
-      phase: { _tag: 'PhaseOne' },
+      phase: { _tag: 'PhaseOne', targetValue: false },
     }
 
     expect(reactObservable(uniformReact).nextSolution).toEqual([0, 5])
@@ -341,10 +369,12 @@ describe('React migration differential oracle', () => {
     const nextFoldkit = foldkitStep(uniformFoldkit, action)
 
     expect(reactObservable(nextReact).currentSolution).toEqual([0])
-    assertParity(nextReact, nextFoldkit)
+    expect(foldkitObservable(nextFoldkit).currentSolution).toEqual([5])
+    assertUnchangedParity(nextReact, nextFoldkit)
+    assertTargetSolution(nextFoldkit)
   })
 
-  test('matches React through every reachable observable state and action', () => {
+  test('preserves non-solution React behavior through every reachable path pair', () => {
     const queue: Array<{ react: ReactState; foldkit: Model }> = [
       { react: initialReactState(), foldkit: initialModel },
     ]
@@ -353,11 +383,13 @@ describe('React migration differential oracle', () => {
     while (queue.length > 0) {
       const pair = queue.shift()
       if (pair === undefined) break
-      assertParity(pair.react, pair.foldkit)
+      assertUnchangedParity(pair.react, pair.foldkit)
+      assertTargetSolution(pair.foldkit)
 
       const key = JSON.stringify({
         gameState: pair.react.gameState,
         phase: pair.react.phase,
+        foldkitPhase: pair.foldkit.phase,
         showSolution: pair.react.showSolution,
         isCustomSetupMode: pair.react.isCustomSetupMode,
       })
@@ -367,27 +399,30 @@ describe('React migration differential oracle', () => {
       for (const action of allActions) {
         const react = reactStep(pair.react, action)
         const foldkit = foldkitStep(pair.foldkit, action)
-        assertParity(react, foldkit)
+        assertUnchangedParity(react, foldkit)
+        assertTargetSolution(foldkit)
         queue.push({ react, foldkit })
       }
     }
 
-    expect(visited.size).toBe(520)
+    expect(visited.size).toBeGreaterThan(500)
   })
 
-  test('matches React across long fuzzed user paths', () => {
+  test('preserves non-solution behavior and target correctness across fuzzed paths', () => {
     fc.assert(
       fc.property(
         fc.array(actionArbitrary, { minLength: 0, maxLength: 200 }),
         actions => {
           let react = initialReactState()
           let foldkit = initialModel
-          assertParity(react, foldkit)
+          assertUnchangedParity(react, foldkit)
+          assertTargetSolution(foldkit)
 
           for (const action of actions) {
             react = reactStep(react, action)
             foldkit = foldkitStep(foldkit, action)
-            assertParity(react, foldkit)
+            assertUnchangedParity(react, foldkit)
+            assertTargetSolution(foldkit)
           }
         },
       ),

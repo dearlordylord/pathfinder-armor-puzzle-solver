@@ -45,7 +45,9 @@ describe('game update', () => {
       message(ClickedTile({ index: 0 })),
       model(next => {
         expect(next.gameState).toEqual([true, true, true, true, true, true])
-        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
+        expect(next.phase).toEqual(
+          GamePhase.cases.PhaseOne.make({ targetValue: false }),
+        )
       }),
     )
   })
@@ -56,11 +58,13 @@ describe('game update', () => {
       given({
         ...initialModel,
         gameState: [true, true, true, true, true, true],
-        phase: GamePhase.cases.PhaseOne.make({}),
+        phase: GamePhase.cases.PhaseOne.make({ targetValue: false }),
       }),
       message(ClickedTile({ index: 0 })),
       model(next => {
-        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
+        expect(next.phase).toEqual(
+          GamePhase.cases.PhaseOne.make({ targetValue: false }),
+        )
       }),
     )
   })
@@ -71,31 +75,35 @@ describe('game update', () => {
       given({
         ...initialModel,
         gameState: [false, false, true, false, true, true],
-        phase: GamePhase.cases.PhaseOne.make({}),
+        phase: GamePhase.cases.PhaseOne.make({ targetValue: true }),
       }),
       message(ClickedTile({ index: 0 })),
       model(next => {
-        expect(next.phase).toEqual(GamePhase.cases.PhaseTwo.make({}))
+        expect(next.phase).toEqual(
+          GamePhase.cases.PhaseTwo.make({ targetValue: true }),
+        )
       }),
     )
   })
 
-  test('leaving a uniform board in PhaseTwo returns to PhaseOne', () => {
+  test('leaving a completed board keeps its restoration target', () => {
     story(
       update,
       given({
         ...initialModel,
         gameState: [false, false, false, false, false, false],
-        phase: GamePhase.cases.PhaseTwo.make({}),
+        phase: GamePhase.cases.PhaseTwo.make({ targetValue: false }),
       }),
       message(ClickedTile({ index: 0 })),
       model(next => {
-        expect(next.phase).toEqual(GamePhase.cases.PhaseOne.make({}))
+        expect(next.phase).toEqual(
+          GamePhase.cases.PhaseTwo.make({ targetValue: false }),
+        )
       }),
     )
   })
 
-  test('the React completion branch remains unreachable through play', () => {
+  test('following both paths reaches the completed phase', () => {
     const [firstPath, oppositePath] = solution(initialGameState, possibleMoves)
     const finalModel = [...firstPath, ...oppositePath].reduce(
       (current, index) =>
@@ -103,7 +111,9 @@ describe('game update', () => {
       initialModel,
     )
 
-    expect(finalModel.phase).toEqual(GamePhase.cases.PhaseTwo.make({}))
+    expect(finalModel.phase).toEqual(
+      GamePhase.cases.PhaseTwo.make({ targetValue: true }),
+    )
   })
 
   test('custom editing changes one tile and resets game progress', () => {
@@ -111,7 +121,7 @@ describe('game update', () => {
       update,
       given({
         ...initialModel,
-        phase: GamePhase.cases.PhaseTwo.make({}),
+        phase: GamePhase.cases.PhaseTwo.make({ targetValue: true }),
         moveHistory: [2, 4],
         isCustomSetupMode: true,
       }),
@@ -125,10 +135,10 @@ describe('game update', () => {
     )
   })
 
-  test('even a uniform custom state starts in Initial', () => {
+  test('a uniform custom state immediately targets its opposite', () => {
     expect(startRun([false, false, false, false, false, false])).toEqual({
       gameState: [false, false, false, false, false, false],
-      phase: GamePhase.cases.Initial.make({}),
+      phase: GamePhase.cases.PhaseOne.make({ targetValue: true }),
       moveHistory: [],
     })
   })
@@ -137,7 +147,7 @@ describe('game update', () => {
     const changedModel = {
       ...initialModel,
       gameState: [true, true, true, true, true, true] as const,
-      phase: GamePhase.cases.PhaseTwo.make({}),
+      phase: GamePhase.cases.PhaseTwo.make({ targetValue: true }),
       moveHistory: [1, 2],
       showSolution: true,
       isCustomSetupMode: true,

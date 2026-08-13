@@ -1,5 +1,8 @@
 import {
+  findPath,
+  isAllFalse,
   isAllSame,
+  isAllTrue,
   type Solution,
   solution,
 } from '@app/solver'
@@ -14,17 +17,26 @@ export interface GameView {
 }
 
 export const deriveGameView = (model: Model): GameView => {
+  if (model.phase._tag !== 'Initial') {
+    const targetSolution = findPath(
+      model.gameState,
+      possibleMoves,
+      model.phase.targetValue ? isAllTrue : isAllFalse,
+    )
+
+    return {
+      isAllSame: isAllSame(model.gameState),
+      currentSolution: targetSolution,
+      nextSolution:
+        model.phase._tag === 'PhaseOne' ? targetSolution : null,
+    }
+  }
+
   const solutions = solution(model.gameState, possibleMoves)
-  const currentSolution =
-    model.phase._tag === 'PhaseTwo' ? solutions[1] : solutions[0]
-  const nextSolution =
-    model.phase._tag === 'Initial' || model.phase._tag === 'PhaseOne'
-      ? solutions[1]
-      : null
 
   return {
     isAllSame: isAllSame(model.gameState),
-    currentSolution,
-    nextSolution,
+    currentSolution: solutions[0],
+    nextSolution: solutions[1],
   }
 }

@@ -20,14 +20,18 @@ const nextPhase = (
 ): GamePhase => {
   const allSame = isAllSame(gameState)
   if (allSame && model.phase._tag === 'Initial') {
-    return GamePhaseSchema.cases.PhaseOne.make({})
-  } else if (
+    return GamePhaseSchema.cases.PhaseOne.make({
+      targetValue: !gameState[0],
+    })
+  }
+  if (
     allSame &&
-    (model.phase._tag === 'PhaseOne' || model.phase._tag === 'PhaseTwo')
+    model.phase._tag === 'PhaseOne' &&
+    gameState[0] === model.phase.targetValue
   ) {
-    return GamePhaseSchema.cases.PhaseTwo.make({})
-  } else if (!allSame && model.phase._tag === 'PhaseTwo') {
-    return GamePhaseSchema.cases.PhaseOne.make({})
+    return GamePhaseSchema.cases.PhaseTwo.make({
+      targetValue: model.phase.targetValue,
+    })
   }
   return model.phase
 }

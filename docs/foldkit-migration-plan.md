@@ -57,12 +57,11 @@ There are no existing frontend behavior tests. The only active source test cover
 
 ## Required product decision: completion semantics
 
-> Implementation decision (2026-08-12): preserve the observable React
-> behavior. Its `Completed` transition is unreachable because of branch
-> ordering, so the Foldkit application retains the reachable
-> `Initial → PhaseOne → PhaseTwo → PhaseOne` behavior and always continues to
-> offer solution guidance. The alternative completion design below is retained
-> as research context, not as the implemented product behavior.
+> Implementation decision (2026-08-12): deliberately correct the observable
+> React behavior. Once the first uniform board establishes its opposite target,
+> Foldkit retains that target through every intermediate move. Reaching it
+> enters the completed `PhaseTwo` presentation; disturbing that board retains
+> the same target and offers a restoration path from the new state.
 
 The current phase implementation cannot reach `GamePhase.Completed`. In `GameManager.updatePhase`, the broad `PhaseOne || PhaseTwo`/all-same branch runs before the narrower completion branch, making the latter unreachable. More importantly, the model does not remember whether the newly uniform board is the opposite of the first uniform board.
 

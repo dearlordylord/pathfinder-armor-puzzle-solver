@@ -7,6 +7,27 @@ import { update } from './update'
 import { view } from './view'
 
 describe('Pathfinder puzzle view', () => {
+  test('continues toward the opposite board after a partial Step 2 path', () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      click(role('button', { name: 'Show Solution' })),
+      click(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })),
+      click(role('button', { name: 'Tile 3, off, affects 3, 0, 4' })),
+      click(role('button', { name: 'Tile 4, on, affects 4, 5, 3' })),
+      expect(text('Step 2: Make all tiles opposite')).toExist(),
+      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
+      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
+      click(role('button', { name: 'Tile 0, off, affects 0, 1, 3' })),
+      expect(text('Step 2: Make all tiles opposite')).toExist(),
+      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).not.toExist(),
+      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
+      click(role('button', { name: 'Tile 5, off, affects 5, 4, 2' })),
+      expect(text('Step 4: Complete the puzzle!')).toExist(),
+      expect(text('No solution needed')).toExist(),
+    )
+  })
+
   test('renders six accessible tile buttons and applies a move', () => {
     scene(
       { update, view },
@@ -81,7 +102,7 @@ describe('Pathfinder puzzle view', () => {
     )
   })
 
-  test('following both solution paths preserves React phase behavior and keeps solving', () => {
+  test('following both solution paths completes and can be restored after another move', () => {
     const [firstPath, oppositePath] = solution(initialGameState, possibleMoves)
     let state: GameState = initialGameState
     const moveSteps = [...firstPath, ...oppositePath].map(moveIndex => {
@@ -110,9 +131,9 @@ describe('Pathfinder puzzle view', () => {
           name: `Tile 0, ${state[0] ? 'on' : 'off'}, affects 0, 1, 3`,
         }),
       ),
-      expect(
-        text('All tiles are now the same. Next, make them all the opposite'),
-      ).toExist(),
+      expect(text('Restore all tiles ON to complete the puzzle')).toExist(),
+      expect(text('Step 3: Make all tiles the same again')).toExist(),
+      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
       expect(text('Puzzle completed! 🎉')).not.toExist(),
     )
   })

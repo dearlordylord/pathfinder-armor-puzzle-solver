@@ -31,8 +31,8 @@ export const decodeGameState = Schema.decodeUnknownSync(GameStateSchema)
 
 export const GamePhase = Schema.TaggedUnion({
   Initial: {},
-  PhaseOne: {},
-  PhaseTwo: {},
+  PhaseOne: { targetValue: Schema.Boolean },
+  PhaseTwo: { targetValue: Schema.Boolean },
 })
 export type GamePhase = typeof GamePhase.Type
 
@@ -53,10 +53,13 @@ export const startRun = (
   }
 
   const fixedGameState = decodeGameState(gameState)
+  const isUniform = fixedGameState.every(value => value === fixedGameState[0])
 
   return {
     gameState: fixedGameState,
-    phase: GamePhase.cases.Initial.make({}),
+    phase: isUniform
+      ? GamePhase.cases.PhaseOne.make({ targetValue: !fixedGameState[0] })
+      : GamePhase.cases.Initial.make({}),
     moveHistory: [],
   }
 }
