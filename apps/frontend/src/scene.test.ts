@@ -74,7 +74,7 @@ describe('Pathfinder puzzle view', () => {
     )
   })
 
-  test('custom setup toggles only the chosen tile and closes when applied', () => {
+  test('custom setup applies changes immediately and exits with its toggle', () => {
     scene(
       { update, view },
       given(initialModel),
@@ -82,12 +82,24 @@ describe('Pathfinder puzzle view', () => {
       click(role('button', { name: 'Custom tile 0, off' })),
       expect(role('button', { name: 'Custom tile 0, on' })).toExist(),
       expect(role('button', { name: 'Custom tile 1, on' })).toExist(),
-      click(role('button', { name: 'Apply Custom Setup' })),
+      expect(role('button', { name: 'Apply Custom Setup' })).not.toExist(),
+      click(role('button', { name: 'Exit Custom Setup' })),
       expect(text('Custom Setup Mode')).not.toExist(),
     )
   })
 
-  test('reset restores the board without closing React-local UI state', () => {
+  test('links to the public GitHub repository', () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      expect(role('link', { name: 'View source on GitHub' })).toHaveAttr(
+        'href',
+        'https://github.com/dearlordylord/pathfinder-armor-puzzle-solver',
+      ),
+    )
+  })
+
+  test('reset restores the board without closing legacy component-local UI state', () => {
     scene(
       { update, view },
       given(initialModel),

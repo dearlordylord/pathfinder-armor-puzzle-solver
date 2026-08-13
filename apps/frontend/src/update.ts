@@ -87,9 +87,5 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         [],
       ],
       ClickedCustomTile: ({ index }) => clickCustomTile(model, index),
-      ClickedApplyCustomSetup: () => [
-        { ...model, isCustomSetupMode: false },
-        [],
-      ],
     }),
   )

@@ -1,7 +1,6 @@
 import type { Html, HtmlBuilder } from 'foldkit/html'
 
 import {
-  ClickedApplyCustomSetup,
   ClickedCustomTile,
   ClickedReset,
   ClickedToggleCustomSetup,
@@ -41,14 +40,6 @@ const customSetupView = (
             ],
           )
         }),
-      ),
-      h.button(
-        [
-          h.Type('button'),
-          h.Class('apply-custom-button'),
-          h.OnClick(ClickedApplyCustomSetup()),
-        ],
-        ['Apply Custom Setup'],
       ),
     ],
   )

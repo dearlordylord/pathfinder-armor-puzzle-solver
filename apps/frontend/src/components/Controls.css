@@ -27,7 +27,7 @@
   margin-bottom: 1rem;
 }
 
-.reset-button, .custom-button, .solution-button, .apply-custom-button, .play-again-button {
+.reset-button, .custom-button, .solution-button, .play-again-button {
   flex: 1;
   padding: 0.75rem 1.5rem;
   border: none;
@@ -70,19 +70,6 @@
 
 .solution-button.active {
   background-color: #e65100;
-}
-
-.apply-custom-button {
-  display: block;
-  width: fit-content;
-  flex: none;
-  background-color: #4caf50;
-  color: white;
-  margin: 1rem auto 0;
-}
-
-.apply-custom-button:hover {
-  background-color: #388e3c;
 }
 
 .play-again-button {

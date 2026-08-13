@@ -3,7 +3,6 @@ import { describe, expect, test } from 'vitest'
 import { solution } from '@app/solver'
 
 import {
-  ClickedApplyCustomSetup,
   ClickedCustomTile,
   ClickedReset,
   ClickedTile,
@@ -143,7 +142,7 @@ describe('game update', () => {
     })
   })
 
-  test('Reset preserves component UI state like React', () => {
+  test('Reset preserves component UI state like the legacy UI', () => {
     const changedModel = {
       ...initialModel,
       gameState: [true, true, true, true, true, true] as const,
@@ -180,10 +179,8 @@ describe('game update', () => {
       model(next => {
         expect(next.isCustomSetupMode).toBe(true)
       }),
-      message(ClickedApplyCustomSetup()),
-      model(next => {
-        expect(next.isCustomSetupMode).toBe(false)
-      }),
+      message(ClickedToggleCustomSetup()),
+      model(next => expect(next.isCustomSetupMode).toBe(false)),
     )
   })
 })

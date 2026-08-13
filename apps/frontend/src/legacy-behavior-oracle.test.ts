@@ -12,7 +12,6 @@ import {
 
 import { deriveGameView } from './derived'
 import {
-  ClickedApplyCustomSetup,
   ClickedCustomTile,
   ClickedReset,
   ClickedTile,
@@ -29,11 +28,11 @@ import {
 } from './model'
 import { update } from './update'
 
-type ReactPhase = 'initial' | 'phase_one' | 'phase_two' | 'completed'
+type LegacyPhase = 'initial' | 'phase_one' | 'phase_two' | 'completed'
 
-interface ReactState {
+interface LegacyState {
   gameState: GameState
-  phase: ReactPhase
+  phase: LegacyPhase
   moveHistory: Array<number>
   showSolution: boolean
   isCustomSetupMode: boolean
@@ -45,16 +44,15 @@ type UserAction =
   | { readonly type: 'reset' }
   | { readonly type: 'toggle-custom' }
   | { readonly type: 'custom-tile'; readonly index: TileIndex }
-  | { readonly type: 'apply-custom' }
 
-// Frozen from the React implementation at f590aeb. Keeping this imperative and
-// separate from Foldkit makes it an independent differential oracle.
-const reactNextPhase = (
-  phase: ReactPhase,
+// Frozen from the pre-Foldkit implementation at f590aeb. This intentionally
+// framework-free model remains an independent differential regression oracle.
+const legacyNextPhase = (
+  phase: LegacyPhase,
   gameState: GameState,
   moveHistory: ReadonlyArray<number>,
-): ReactPhase => {
-  const allSame = reactIsAllSame(gameState)
+): LegacyPhase => {
+  const allSame = legacyIsAllSame(gameState)
   if (allSame && phase === 'initial') {
     return 'phase_one'
   } else if (
@@ -70,19 +68,19 @@ const reactNextPhase = (
   return phase
 }
 
-const reactApplyMove = (state: GameState, move: ReadonlyArray<number>): GameState =>
+const legacyApplyMove = (state: GameState, move: ReadonlyArray<number>): GameState =>
   state.map((value, index) => (move.includes(index) ? !value : value))
 
-const reactIsAllTrue = (state: GameState): boolean =>
+const legacyIsAllTrue = (state: GameState): boolean =>
   state.every(value => value === true)
 
-const reactIsAllFalse = (state: GameState): boolean =>
+const legacyIsAllFalse = (state: GameState): boolean =>
   state.every(value => value === false)
 
-const reactIsAllSame = (state: GameState): boolean =>
-  reactIsAllTrue(state) || reactIsAllFalse(state)
+const legacyIsAllSame = (state: GameState): boolean =>
+  legacyIsAllTrue(state) || legacyIsAllFalse(state)
 
-const reactFindPath = (
+const legacyFindPath = (
   initialState: GameState,
   moves: PossibleMoves,
   isTarget: (state: GameState) => boolean,
@@ -100,7 +98,7 @@ const reactFindPath = (
     for (let moveIndex = 0; moveIndex < moves.length; moveIndex += 1) {
       const move = moves[moveIndex]
       if (move === undefined) continue
-      const nextState = reactApplyMove(current.state, move)
+      const nextState = legacyApplyMove(current.state, move)
       const key = JSON.stringify(nextState)
       if (!visited.has(key)) {
         visited.add(key)
@@ -112,25 +110,25 @@ const reactFindPath = (
   return []
 }
 
-const reactSolution = (
+const legacySolution = (
   state: GameState,
   moves: PossibleMoves,
 ): readonly [Solution, Solution] => {
-  const first = reactFindPath(state, moves, reactIsAllSame)
+  const first = legacyFindPath(state, moves, legacyIsAllSame)
   const afterFirst = first.reduce<GameState>(
     (current, moveIndex) =>
-      reactApplyMove(current, moves[moveIndex] ?? []),
+      legacyApplyMove(current, moves[moveIndex] ?? []),
     [...state],
   )
-  const second = reactFindPath(
+  const second = legacyFindPath(
     afterFirst,
     moves,
-    reactIsAllTrue(afterFirst) ? reactIsAllFalse : reactIsAllTrue,
+    legacyIsAllTrue(afterFirst) ? legacyIsAllFalse : legacyIsAllTrue,
   )
   return [first, second]
 }
 
-const initialReactState = (): ReactState => ({
+const initialLegacyState = (): LegacyState => ({
   gameState: [...initialGameState],
   phase: 'initial',
   moveHistory: [],
@@ -138,10 +136,10 @@ const initialReactState = (): ReactState => ({
   isCustomSetupMode: false,
 })
 
-const reactStep = (state: ReactState, action: UserAction): ReactState => {
+const legacyStep = (state: LegacyState, action: UserAction): LegacyState => {
   switch (action.type) {
     case 'tile': {
-      const gameState = reactApplyMove(
+      const gameState = legacyApplyMove(
         state.gameState,
         possibleMoves[action.index] ?? [],
       )
@@ -150,7 +148,7 @@ const reactStep = (state: ReactState, action: UserAction): ReactState => {
         ...state,
         gameState,
         moveHistory,
-        phase: reactNextPhase(state.phase, gameState, moveHistory),
+        phase: legacyNextPhase(state.phase, gameState, moveHistory),
       }
     }
     case 'toggle-solution':
@@ -174,10 +172,6 @@ const reactStep = (state: ReactState, action: UserAction): ReactState => {
         phase: 'initial',
         moveHistory: [],
       }
-    case 'apply-custom':
-      return state.isCustomSetupMode
-        ? { ...state, isCustomSetupMode: false }
-        : state
   }
 }
 
@@ -195,14 +189,10 @@ const foldkitStep = (model: Model, action: UserAction): Model => {
       return model.isCustomSetupMode
         ? update(model, ClickedCustomTile({ index: action.index }))[0]
         : model
-    case 'apply-custom':
-      return model.isCustomSetupMode
-        ? update(model, ClickedApplyCustomSetup())[0]
-        : model
   }
 }
 
-const phaseFromFoldkit = (model: Model): ReactPhase => {
+const phaseFromFoldkit = (model: Model): LegacyPhase => {
   switch (model.phase._tag) {
     case 'Initial':
       return 'initial'
@@ -213,31 +203,31 @@ const phaseFromFoldkit = (model: Model): ReactPhase => {
   }
 }
 
-const reactSolutionsByBoard = new Map<
+const legacySolutionsByBoard = new Map<
   string,
   readonly [Solution, Solution]
 >()
 
-const cachedReactSolution = (
+const cachedLegacySolution = (
   gameState: GameState,
 ): readonly [Solution, Solution] => {
   const key = JSON.stringify(gameState)
-  const cached = reactSolutionsByBoard.get(key)
+  const cached = legacySolutionsByBoard.get(key)
   if (cached !== undefined) return cached
-  const solved = reactSolution(gameState, possibleMoves)
-  reactSolutionsByBoard.set(key, solved)
+  const solved = legacySolution(gameState, possibleMoves)
+  legacySolutionsByBoard.set(key, solved)
   return solved
 }
 
-const reactObservable = (state: ReactState) => {
-  const solutions = cachedReactSolution(state.gameState)
+const legacyObservable = (state: LegacyState) => {
+  const solutions = cachedLegacySolution(state.gameState)
   return {
     gameState: state.gameState,
     phase: state.phase,
     moveHistory: state.moveHistory,
     showSolution: state.showSolution,
     isCustomSetupMode: state.isCustomSetupMode,
-    isAllSame: reactIsAllSame(state.gameState),
+    isAllSame: legacyIsAllSame(state.gameState),
     currentSolution:
       state.phase === 'phase_two' || state.phase === 'completed'
         ? solutions[1]
@@ -270,7 +260,7 @@ const foldkitObservable = (model: Model) => {
   }
 }
 
-const unchangedReactObservable = (state: ReactState) => ({
+const unchangedLegacyObservable = (state: LegacyState) => ({
   gameState: state.gameState,
   moveHistory: state.moveHistory,
   showSolution: state.showSolution,
@@ -284,9 +274,9 @@ const unchangedFoldkitObservable = (model: Model) => ({
   isCustomSetupMode: model.isCustomSetupMode,
 })
 
-const assertUnchangedParity = (react: ReactState, foldkit: Model): void => {
+const assertUnchangedParity = (legacy: LegacyState, foldkit: Model): void => {
   expect(unchangedFoldkitObservable(foldkit)).toEqual(
-    unchangedReactObservable(react),
+    unchangedLegacyObservable(legacy),
   )
 }
 
@@ -314,7 +304,6 @@ const allActions: ReadonlyArray<UserAction> = [
     type: 'custom-tile' as const,
     index: decodeTileIndex(index),
   })),
-  { type: 'apply-custom' },
 ]
 
 const actionArbitrary: fc.Arbitrary<UserAction> = fc.oneof(
@@ -329,30 +318,29 @@ const actionArbitrary: fc.Arbitrary<UserAction> = fc.oneof(
     type: fc.constant('custom-tile' as const),
     index: fc.integer({ min: 0, max: 5 }).map(decodeTileIndex),
   }),
-  fc.constant({ type: 'apply-custom' as const }),
 )
 
-describe('React migration differential oracle', () => {
-  test('preserves the React solver result for every six-tile board', () => {
+describe('Legacy behavior differential oracle', () => {
+  test('preserves the Legacy solver result for every six-tile board', () => {
     for (let mask = 0; mask < 64; mask += 1) {
       const state = Array.from(
         { length: 6 },
         (_, index) => (mask & (1 << index)) !== 0,
       )
       expect(applyMove(state, possibleMoves[0] ?? [])).toEqual(
-        reactApplyMove(state, possibleMoves[0] ?? []),
+        legacyApplyMove(state, possibleMoves[0] ?? []),
       )
-      expect(isAllTrue(state)).toBe(reactIsAllTrue(state))
-      expect(isAllFalse(state)).toBe(reactIsAllFalse(state))
+      expect(isAllTrue(state)).toBe(legacyIsAllTrue(state))
+      expect(isAllFalse(state)).toBe(legacyIsAllFalse(state))
       expect(solution(state, possibleMoves)).toEqual(
-        reactSolution(state, possibleMoves),
+        legacySolution(state, possibleMoves),
       )
     }
   })
 
-  test('intentionally keeps the opposite target where React abandons it', () => {
-    const uniformReact: ReactState = {
-      ...initialReactState(),
+  test('intentionally keeps the opposite target where Legacy abandons it', () => {
+    const uniformLegacy: LegacyState = {
+      ...initialLegacyState(),
       gameState: [true, true, true, true, true, true],
       phase: 'phase_one',
     }
@@ -362,46 +350,46 @@ describe('React migration differential oracle', () => {
       phase: { _tag: 'PhaseOne', targetValue: false },
     }
 
-    expect(reactObservable(uniformReact).nextSolution).toEqual([0, 5])
+    expect(legacyObservable(uniformLegacy).nextSolution).toEqual([0, 5])
 
     const action: UserAction = { type: 'tile', index: 0 }
-    const nextReact = reactStep(uniformReact, action)
+    const nextLegacy = legacyStep(uniformLegacy, action)
     const nextFoldkit = foldkitStep(uniformFoldkit, action)
 
-    expect(reactObservable(nextReact).currentSolution).toEqual([0])
+    expect(legacyObservable(nextLegacy).currentSolution).toEqual([0])
     expect(foldkitObservable(nextFoldkit).currentSolution).toEqual([5])
-    assertUnchangedParity(nextReact, nextFoldkit)
+    assertUnchangedParity(nextLegacy, nextFoldkit)
     assertTargetSolution(nextFoldkit)
   })
 
-  test('preserves non-solution React behavior through every reachable path pair', () => {
-    const queue: Array<{ react: ReactState; foldkit: Model }> = [
-      { react: initialReactState(), foldkit: initialModel },
+  test('preserves non-solution Legacy behavior through every reachable path pair', () => {
+    const queue: Array<{ legacy: LegacyState; foldkit: Model }> = [
+      { legacy: initialLegacyState(), foldkit: initialModel },
     ]
     const visited = new Set<string>()
 
     while (queue.length > 0) {
       const pair = queue.shift()
       if (pair === undefined) break
-      assertUnchangedParity(pair.react, pair.foldkit)
+      assertUnchangedParity(pair.legacy, pair.foldkit)
       assertTargetSolution(pair.foldkit)
 
       const key = JSON.stringify({
-        gameState: pair.react.gameState,
-        phase: pair.react.phase,
+        gameState: pair.legacy.gameState,
+        phase: pair.legacy.phase,
         foldkitPhase: pair.foldkit.phase,
-        showSolution: pair.react.showSolution,
-        isCustomSetupMode: pair.react.isCustomSetupMode,
+        showSolution: pair.legacy.showSolution,
+        isCustomSetupMode: pair.legacy.isCustomSetupMode,
       })
       if (visited.has(key)) continue
       visited.add(key)
 
       for (const action of allActions) {
-        const react = reactStep(pair.react, action)
+        const legacy = legacyStep(pair.legacy, action)
         const foldkit = foldkitStep(pair.foldkit, action)
-        assertUnchangedParity(react, foldkit)
+        assertUnchangedParity(legacy, foldkit)
         assertTargetSolution(foldkit)
-        queue.push({ react, foldkit })
+        queue.push({ legacy, foldkit })
       }
     }
 
@@ -413,15 +401,15 @@ describe('React migration differential oracle', () => {
       fc.property(
         fc.array(actionArbitrary, { minLength: 0, maxLength: 200 }),
         actions => {
-          let react = initialReactState()
+          let legacy = initialLegacyState()
           let foldkit = initialModel
-          assertUnchangedParity(react, foldkit)
+          assertUnchangedParity(legacy, foldkit)
           assertTargetSolution(foldkit)
 
           for (const action of actions) {
-            react = reactStep(react, action)
+            legacy = legacyStep(legacy, action)
             foldkit = foldkitStep(foldkit, action)
-            assertUnchangedParity(react, foldkit)
+            assertUnchangedParity(legacy, foldkit)
             assertTargetSolution(foldkit)
           }
         },
