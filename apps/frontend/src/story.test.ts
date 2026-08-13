@@ -142,7 +142,7 @@ describe('game update', () => {
     })
   })
 
-  test('Reset preserves component UI state like the legacy UI', () => {
+  test('Reset preserves display and custom-setup preferences', () => {
     const changedModel = {
       ...initialModel,
       gameState: [true, true, true, true, true, true] as const,

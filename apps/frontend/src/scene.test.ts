@@ -99,7 +99,7 @@ describe('Pathfinder puzzle view', () => {
     )
   })
 
-  test('reset restores the board without closing legacy component-local UI state', () => {
+  test('reset restores the board without closing custom setup or solution', () => {
     scene(
       { update, view },
       given(initialModel),
