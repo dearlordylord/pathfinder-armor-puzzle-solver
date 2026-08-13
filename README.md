@@ -10,6 +10,7 @@ A TypeScript monorepo using pnpm workspaces with a solver library and a native F
 
 - `packages/solver`: Core solver library
 - `apps/frontend`: Foldkit frontend application with an immutable Effect Schema model
+- `apps/model-tests`: Quint proof and `quint-connect-ts` model-based tests against the production reducer and solver
 
 ## Setup
 
@@ -34,6 +35,12 @@ pnpm install
 - `pnpm --filter frontend test` - Run Foldkit Story and Scene tests
 - `pnpm --filter frontend build` - Build the frontend for production
 - `pnpm --filter frontend preview` - Preview the production build
+
+### Formal model and model-based tests
+
+- `pnpm --filter model-tests test` - Typecheck and run Quint scenarios, bounded verification, and generated trace replay against the production reducer and BFS distance
+- `pnpm --filter model-tests test:quint` - Run the executable Quint scenarios
+- `pnpm --filter model-tests verify:quint` - Verify puzzle-state invariants through its diameter and prove the exact shortest-path table for every board and target
 
 ## The Game
 

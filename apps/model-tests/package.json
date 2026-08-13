@@ -1,0 +1,27 @@
+{
+  "name": "model-tests",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "pnpm typecheck",
+    "lint": "oxlint src",
+    "test": "pnpm test:quint && pnpm verify:quint && vitest run",
+    "test:quint": "quint typecheck ../frontend/specs/puzzle.qnt && quint typecheck ../frontend/specs/puzzle_test.qnt && quint typecheck ../frontend/specs/solver_proof.qnt && quint test ../frontend/specs/puzzle_test.qnt --main puzzle_test",
+    "verify:quint": "quint verify ../frontend/specs/puzzle.qnt --invariant puzzleInvariant --max-steps 12 && quint verify ../frontend/specs/solver_proof.qnt --main solver_proof --init solverInit --step solverStep --invariant distanceIsExact --max-steps 1"
+  },
+  "dependencies": {
+    "@app/solver": "workspace:*",
+    "effect": "3.19.15"
+  },
+  "devDependencies": {
+    "@firfi/quint-connect": "2.1.0",
+    "@informalsystems/quint": "0.32.0",
+    "oxlint": "^1.78.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9",
+    "zod": "^4.0.0"
+  }
+}

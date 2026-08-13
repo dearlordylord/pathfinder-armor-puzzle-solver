@@ -73,7 +73,7 @@ export const solutionView = (
   const derived = deriveGameView(model)
   const parts: Array<Html> = []
 
-  if (!derived.isAllSame) {
+  if (!derived.isAtPhaseGoal) {
     parts.push(
       h.div(
         [h.Class('solution-part')],
@@ -94,7 +94,7 @@ export const solutionView = (
     )
   }
 
-  if (derived.isAllSame) {
+  if (derived.isAtPhaseGoal) {
     parts.push(
       h.div(
         [h.Class('solution-part')],
@@ -117,7 +117,7 @@ export const solutionView = (
       h.h3([], ['Solution']),
       h.p(
         [h.Class('solution-info')],
-        [solutionInfo(model, derived.isAllSame)],
+        [solutionInfo(model, derived.isAtPhaseGoal)],
       ),
       h.div([h.Class('solution-steps')], parts),
     ],

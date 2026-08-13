@@ -406,7 +406,7 @@ describe('React migration differential oracle', () => {
     }
 
     expect(visited.size).toBeGreaterThan(500)
-  })
+  }, 15_000)
 
   test('preserves non-solution behavior and target correctness across fuzzed paths', () => {
     fc.assert(

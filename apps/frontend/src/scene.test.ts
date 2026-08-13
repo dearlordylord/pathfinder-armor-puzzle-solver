@@ -134,6 +134,16 @@ describe('Pathfinder puzzle view', () => {
       expect(text('Restore all tiles ON to complete the puzzle')).toExist(),
       expect(text('Step 3: Make all tiles the same again')).toExist(),
       expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
+      click(
+        role('button', {
+          name: 'Tile 5, on, affects 5, 4, 2',
+        }),
+      ),
+      expect(text('Restore all tiles ON to complete the puzzle')).toExist(),
+      expect(text('Step 3: Make all tiles the same again')).toExist(),
+      expect(text('Step 4: Complete the puzzle!')).not.toExist(),
+      expect(text('Press tile 0 (affects tiles 0, 1, 3)')).toExist(),
+      expect(text('Press tile 5 (affects tiles 5, 4, 2)')).toExist(),
       expect(text('Puzzle completed! 🎉')).not.toExist(),
     )
   })
