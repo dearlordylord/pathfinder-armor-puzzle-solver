@@ -36,6 +36,9 @@ importers:
       '@foldkit/vite-plugin':
         specifier: 0.12.3
         version: 0.12.3(effect@4.0.0-beta.107)(foldkit@0.142.1)(vite@8.2.1)
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
       happy-dom:
         specifier: ^20.10.4
         version: 20.11.2
