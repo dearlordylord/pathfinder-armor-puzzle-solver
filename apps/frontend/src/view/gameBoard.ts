@@ -2,20 +2,21 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 
 import { ClickedTile, type Message } from '../message'
 import type { Model } from '../model'
-import { tiles } from '../model'
+import { replayRun, tiles } from '../model'
 
 export const gameBoardView = (
   model: Model,
   h: HtmlBuilder<Message>,
-): Html =>
-  h.section(
+): Html => {
+  const { gameState } = replayRun(model.run)
+  return h.section(
     [h.Class('game-board')],
     [
       h.h2([], ['Game Board']),
       h.div(
         [h.Class('game-grid')],
         tiles.map(tile => {
-          const isActive = model.gameState[tile.id]
+          const isActive = gameState[tile.id]
           const label = `Tile ${tile.id}, ${isActive ? 'on' : 'off'}, affects ${tile.move.join(', ')}`
 
           return h.button(
@@ -63,3 +64,4 @@ export const gameBoardView = (
       ),
     ],
   )
+}

@@ -4,20 +4,20 @@ import type { Solution } from '@app/solver'
 import { deriveGameView } from '../derived'
 import type { Message } from '../message'
 import type { Model } from '../model'
-import { possibleMoves } from '../model'
+import { possibleMoves, replayRun, type GameProgress } from '../model'
 
-const solutionInfo = (model: Model, allSame: boolean): string => {
-  switch (model.phase._tag) {
-    case 'Initial':
+const solutionInfo = (progress: GameProgress, allSame: boolean): string => {
+  switch (progress._tag) {
+    case 'SeekingFirstUniform':
       return 'First make all tiles the same, then make them all the opposite'
-    case 'PhaseOne':
+    case 'SeekingOpposite':
       return allSame
         ? 'All tiles are now the same. Next, make them all the opposite'
-        : `Continue making all tiles ${model.phase.targetValue ? 'ON' : 'OFF'}`
-    case 'PhaseTwo':
+        : `Continue making all tiles ${progress.targetValue ? 'ON' : 'OFF'}`
+    case 'OppositeReached':
       return allSame
         ? 'All tiles are now the same again. Complete the puzzle!'
-        : `Restore all tiles ${model.phase.targetValue ? 'ON' : 'OFF'} to complete the puzzle`
+        : `Restore all tiles ${progress.targetValue ? 'ON' : 'OFF'} to complete the puzzle`
   }
 }
 
@@ -45,23 +45,23 @@ const moveList = (
   )
 }
 
-const currentSolutionHeading = (model: Model): string => {
-  switch (model.phase._tag) {
-    case 'Initial':
+const currentSolutionHeading = (progress: GameProgress): string => {
+  switch (progress._tag) {
+    case 'SeekingFirstUniform':
       return 'Step 1: Make all tiles the same'
-    case 'PhaseTwo':
+    case 'OppositeReached':
       return 'Step 3: Make all tiles the same again'
-    case 'PhaseOne':
+    case 'SeekingOpposite':
       return 'Step 2: Make all tiles opposite'
   }
 }
 
-const nextSolutionHeading = (model: Model): string => {
-  switch (model.phase._tag) {
-    case 'Initial':
-    case 'PhaseOne':
+const nextSolutionHeading = (progress: GameProgress): string => {
+  switch (progress._tag) {
+    case 'SeekingFirstUniform':
+    case 'SeekingOpposite':
       return 'Step 2: Make all tiles opposite'
-    case 'PhaseTwo':
+    case 'OppositeReached':
       return 'Step 4: Complete the puzzle!'
   }
 }
@@ -71,14 +71,15 @@ export const solutionView = (
   h: HtmlBuilder<Message>,
 ): Html => {
   const derived = deriveGameView(model)
+  const { progress } = replayRun(model.run)
   const parts: Array<Html> = []
 
-  if (!derived.isAtPhaseGoal) {
+  if (!derived.isAtProgressGoal) {
     parts.push(
       h.div(
         [h.Class('solution-part')],
         [
-          h.h4([], [currentSolutionHeading(model)]),
+          h.h4([], [currentSolutionHeading(progress)]),
           h.div(
             [h.Class('solution-moves')],
             derived.currentSolution.length > 0
@@ -94,12 +95,12 @@ export const solutionView = (
     )
   }
 
-  if (derived.isAtPhaseGoal) {
+  if (derived.isAtProgressGoal) {
     parts.push(
       h.div(
         [h.Class('solution-part')],
         [
-          h.h4([], [nextSolutionHeading(model)]),
+          h.h4([], [nextSolutionHeading(progress)]),
           h.div(
             [h.Class('solution-moves')],
             derived.nextSolution !== null && derived.nextSolution.length > 0
@@ -117,7 +118,7 @@ export const solutionView = (
       h.h3([], ['Solution']),
       h.p(
         [h.Class('solution-info')],
-        [solutionInfo(model, derived.isAtPhaseGoal)],
+        [solutionInfo(progress, derived.isAtProgressGoal)],
       ),
       h.div([h.Class('solution-steps')], parts),
     ],

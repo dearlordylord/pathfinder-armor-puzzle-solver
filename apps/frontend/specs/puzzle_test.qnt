@@ -6,14 +6,14 @@ module puzzle_test {
       .then(PressWith(0))
       .then(PressWith(3))
       .then(PressWith(4))
-      .expect(puzzleState.phase == PhaseOne(true))
+      .expect(puzzleState.progress == SeekingOpposite(true))
       .then(PressWith(0))
-      .expect(puzzleState.phase == PhaseOne(true))
+      .expect(puzzleState.progress == SeekingOpposite(true))
       .then(PressWith(5))
-      .expect(puzzleState.phase == PhaseTwo(true))
+      .expect(puzzleState.progress == OppositeReached(true))
       .then(PressWith(0))
       .expect(and {
-        puzzleState.phase == PhaseTwo(true),
+        puzzleState.progress == OppositeReached(true),
         not(isUniform(puzzleState.board)),
       })
 
@@ -27,7 +27,14 @@ module puzzle_test {
       .then(CustomTileWith(1))
       .then(CustomTileWith(3))
       .then(CustomTileWith(5))
-      .expect(puzzleState.phase == PhaseOne(true))
+      .expect(puzzleState.progress == SeekingOpposite(true))
+
+  run customTrueUniformTargetsFalseTest =
+    init
+      .then(CustomTileWith(0))
+      .then(CustomTileWith(2))
+      .then(CustomTileWith(4))
+      .expect(puzzleState.progress == SeekingOpposite(false))
 
   run resetReturnsToInitialTest =
     init
@@ -35,8 +42,8 @@ module puzzle_test {
       .then(Reset)
       .expect(and {
         puzzleState.board == INITIAL_BOARD,
-        puzzleState.phase == Initial,
-        not(puzzleState.atPhaseGoal),
+        puzzleState.progress == SeekingFirstUniform,
+        not(isAtProgressGoal(puzzleState.board, puzzleState.progress)),
       })
 
   action CustomTileWith(tile: int): bool = all {

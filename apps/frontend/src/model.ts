@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import type { GameState } from '@app/solver'
+import { applyMove, isAllSame, type GameState } from '@app/solver'
 
 export const initialGameState = [false, true, false, true, false, true] as const
 
@@ -29,43 +29,98 @@ export const GameStateSchema = Schema.Tuple([
 
 export const decodeGameState = Schema.decodeUnknownSync(GameStateSchema)
 
-export const GamePhase = Schema.TaggedUnion({
-  Initial: {},
-  PhaseOne: { targetValue: Schema.Boolean },
-  PhaseTwo: { targetValue: Schema.Boolean },
+export const GameProgress = Schema.TaggedUnion({
+  SeekingFirstUniform: {},
+  // The target is opposite the first uniform board: first false means target
+  // true, and first true means target false. Both directions are tested.
+  SeekingOpposite: { targetValue: Schema.Boolean },
+  OppositeReached: { targetValue: Schema.Boolean },
 })
-export type GamePhase = typeof GamePhase.Type
+export type GameProgress = typeof GameProgress.Type
+
+export const GameRun = Schema.Struct({
+  startingBoard: GameStateSchema,
+  moveHistory: Schema.Array(TileIndex),
+})
+export type GameRun = typeof GameRun.Type
 
 export const Model = Schema.Struct({
-  gameState: GameStateSchema,
-  phase: GamePhase,
-  moveHistory: Schema.Array(Schema.Number),
+  run: GameRun,
   showSolution: Schema.Boolean,
   isCustomSetupMode: Schema.Boolean,
 })
 export interface Model extends Schema.Schema.Type<typeof Model> {}
 
-export const startRun = (
-  gameState: GameState,
-): Pick<Model, 'gameState' | 'phase' | 'moveHistory'> => {
+export const startRun = (gameState: GameState): GameRun => {
   if (gameState.length !== 6) {
     throw new Error(`Expected a six-tile game state, received ${gameState.length}`)
   }
 
-  const fixedGameState = decodeGameState(gameState)
-  const isUniform = fixedGameState.every(value => value === fixedGameState[0])
-
   return {
-    gameState: fixedGameState,
-    phase: isUniform
-      ? GamePhase.cases.PhaseOne.make({ targetValue: !fixedGameState[0] })
-      : GamePhase.cases.Initial.make({}),
+    startingBoard: decodeGameState(gameState),
     moveHistory: [],
   }
 }
 
+export interface ReplayedRun {
+  readonly gameState: typeof GameStateSchema.Type
+  readonly progress: GameProgress
+}
+
+const progressForNewRun = (gameState: typeof GameStateSchema.Type): GameProgress =>
+  isAllSame(gameState)
+    ? GameProgress.cases.SeekingOpposite.make({
+        targetValue: !gameState[0],
+      })
+    : GameProgress.cases.SeekingFirstUniform.make({})
+
+const advanceProgress = (
+  progress: GameProgress,
+  gameState: typeof GameStateSchema.Type,
+): GameProgress => {
+  if (
+    progress._tag === 'SeekingFirstUniform' &&
+    isAllSame(gameState)
+  ) {
+    return GameProgress.cases.SeekingOpposite.make({
+      targetValue: !gameState[0],
+    })
+  }
+  if (
+    progress._tag === 'SeekingOpposite' &&
+    isAllSame(gameState) &&
+    gameState[0] === progress.targetValue
+  ) {
+    return GameProgress.cases.OppositeReached.make({
+      targetValue: progress.targetValue,
+    })
+  }
+  return progress
+}
+
+export const replayRun = (run: GameRun): ReplayedRun =>
+  run.moveHistory.reduce<ReplayedRun>(
+    (current, index) => {
+      const move = possibleMoves[index]
+      if (move === undefined) {
+        throw new Error(`No move exists for tile ${index}`)
+      }
+      const gameState = decodeGameState(
+        applyMove(current.gameState, move),
+      )
+      return {
+        gameState,
+        progress: advanceProgress(current.progress, gameState),
+      }
+    },
+    {
+      gameState: run.startingBoard,
+      progress: progressForNewRun(run.startingBoard),
+    },
+  )
+
 export const initialModel: Model = {
-  ...startRun(initialGameState),
+  run: startRun(initialGameState),
   showSolution: false,
   isCustomSetupMode: false,
 }

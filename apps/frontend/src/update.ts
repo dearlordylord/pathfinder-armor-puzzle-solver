@@ -1,40 +1,17 @@
 import { Match } from 'effect'
 import { Command } from 'foldkit'
-import { applyMove, isAllSame } from '@app/solver'
 
 import type { Message } from './message'
-import type { GamePhase, Model, TileIndex } from './model'
+import type { Model, TileIndex } from './model'
 import {
   decodeGameState,
-  GamePhase as GamePhaseSchema,
-  initialModel,
+  initialGameState,
   possibleMoves,
+  replayRun,
   startRun,
 } from './model'
 
 type UpdateReturn = readonly [Model, ReadonlyArray<Command.Command<Message>>]
-
-const nextPhase = (
-  model: Model,
-  gameState: Model['gameState'],
-): GamePhase => {
-  const allSame = isAllSame(gameState)
-  if (allSame && model.phase._tag === 'Initial') {
-    return GamePhaseSchema.cases.PhaseOne.make({
-      targetValue: !gameState[0],
-    })
-  }
-  if (
-    allSame &&
-    model.phase._tag === 'PhaseOne' &&
-    gameState[0] === model.phase.targetValue
-  ) {
-    return GamePhaseSchema.cases.PhaseTwo.make({
-      targetValue: model.phase.targetValue,
-    })
-  }
-  return model.phase
-}
 
 const clickTile = (model: Model, index: TileIndex): UpdateReturn => {
   const move = possibleMoves[index]
@@ -42,31 +19,31 @@ const clickTile = (model: Model, index: TileIndex): UpdateReturn => {
     return [model, []]
   }
 
-  const gameState = decodeGameState(applyMove(model.gameState, move))
-  const moveHistory = [...model.moveHistory, index]
   return [
     {
       ...model,
-      gameState,
-      moveHistory,
-      phase: nextPhase({ ...model, moveHistory }, gameState),
+      run: {
+        ...model.run,
+        moveHistory: [...model.run.moveHistory, index],
+      },
     },
     [],
   ]
 }
 
 const clickCustomTile = (model: Model, index: TileIndex): UpdateReturn => {
-  if (model.gameState[index] === undefined) {
+  const { gameState } = replayRun(model.run)
+  if (gameState[index] === undefined) {
     return [model, []]
   }
 
-  const gameState = decodeGameState(
-    model.gameState.map((value, tileIndex) =>
+  const editedGameState = decodeGameState(
+    gameState.map((value, tileIndex) =>
       tileIndex === index ? !value : value,
     ),
   )
 
-  return [{ ...model, ...startRun(gameState) }, []]
+  return [{ ...model, run: startRun(editedGameState) }, []]
 }
 
 export const update = (model: Model, message: Message): UpdateReturn =>
@@ -79,7 +56,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         [],
       ],
       ClickedReset: () => [
-        { ...model, ...startRun(initialModel.gameState) },
+        { ...model, run: startRun(initialGameState) },
         [],
       ],
       ClickedToggleCustomSetup: () => [
