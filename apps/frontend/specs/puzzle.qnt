@@ -1,25 +1,28 @@
 // Grounding model for apps/frontend/src/model.ts, update.ts, and derived.ts.
 //
 // Covers the six-tile board, remembered opposite target, reset/custom-run
-// semantics, completion/restoration phase, and the derived phase-goal flag.
+// semantics, opposite-reached restoration, and the derived progress-goal flag.
 // UI controls, rendering mechanics, and move-history storage are intentionally
 // outside this model because they do not affect puzzle transitions.
 //
 // Source correspondence:
 //   puzzle state/transitions <-> apps/frontend/src/model.ts and update.ts
-//   atPhaseGoal/guidance     <-> apps/frontend/src/derived.ts
+//   atProgressGoal/guidance  <-> apps/frontend/src/derived.ts
 //   move effects             <-> packages/solver/src/index.ts
 //
 // Update this spec before changing those production modules, then rerun the
 // Quint proof and quint-connect replay checks.
 module puzzle {
-  type Phase = Initial | PhaseOne(bool) | PhaseTwo(bool)
+  type Progress =
+    | SeekingFirstUniform
+    // The target is opposite the first uniform board: first false => target true,
+    // and first true => target false. Both directions are covered by tests.
+    | SeekingOpposite(bool)
+    | OppositeReached(bool)
 
   type PuzzleState = {
     board: List[bool],
-    phase: Phase,
-    atPhaseGoal: bool,
-    solutionDistance: int,
+    progress: Progress,
   }
 
   pure val TILES = 0.to(5)
@@ -52,25 +55,25 @@ module puzzle {
   pure def toggleCustom(board: List[bool], tile: int): List[bool] =
     board.replaceAt(tile, not(board.nth(tile)))
 
-  pure def phaseForNewRun(board: List[bool]): Phase =
-    if (isUniform(board)) PhaseOne(not(board.nth(0))) else Initial
+  pure def progressForNewRun(board: List[bool]): Progress =
+    if (isUniform(board)) SeekingOpposite(not(board.nth(0))) else SeekingFirstUniform
 
-  pure def advancePhase(phase: Phase, board: List[bool]): Phase =
-    match phase {
-      | Initial =>
-          if (isUniform(board)) PhaseOne(not(board.nth(0))) else Initial
-      | PhaseOne(target) =>
+  pure def advanceProgress(progress: Progress, board: List[bool]): Progress =
+    match progress {
+      | SeekingFirstUniform =>
+          if (isUniform(board)) SeekingOpposite(not(board.nth(0))) else SeekingFirstUniform
+      | SeekingOpposite(target) =>
           if (isUniform(board) and board.nth(0) == target)
-          PhaseTwo(target)
-          else PhaseOne(target)
-      | PhaseTwo(target) => PhaseTwo(target)
+          OppositeReached(target)
+          else SeekingOpposite(target)
+      | OppositeReached(target) => OppositeReached(target)
     }
 
-  pure def isAtPhaseGoal(board: List[bool], phase: Phase): bool =
-    match phase {
-      | Initial => isUniform(board)
-      | PhaseOne(target) => isUniform(board) and board.nth(0) == target
-      | PhaseTwo(target) => isUniform(board) and board.nth(0) == target
+  pure def isAtProgressGoal(board: List[bool], progress: Progress): bool =
+    match progress {
+      | SeekingFirstUniform => isUniform(board)
+      | SeekingOpposite(target) => isUniform(board) and board.nth(0) == target
+      | OppositeReached(target) => isUniform(board) and board.nth(0) == target
     }
 
   // Independently tabulated graph distances for all 2^6 boards, indexed by
@@ -98,63 +101,59 @@ module puzzle {
     (if (board.nth(4)) 16 else 0) +
     (if (board.nth(5)) 32 else 0)
 
-  pure def shortestSolutionDistance(board: List[bool], phase: Phase): int =
-    match phase {
-      | Initial => DISTANCE_TO_UNIFORM.nth(boardCode(board))
-      | PhaseOne(target) =>
+  pure def shortestSolutionDistance(board: List[bool], progress: Progress): int =
+    match progress {
+      | SeekingFirstUniform => DISTANCE_TO_UNIFORM.nth(boardCode(board))
+      | SeekingOpposite(target) =>
           if (target) DISTANCE_TO_TRUE.nth(boardCode(board))
           else DISTANCE_TO_FALSE.nth(boardCode(board))
-      | PhaseTwo(target) =>
+      | OppositeReached(target) =>
           if (target) DISTANCE_TO_TRUE.nth(boardCode(board))
           else DISTANCE_TO_FALSE.nth(boardCode(board))
     }
 
-  pure def solutionDistanceObeysBellman(board: List[bool], phase: Phase): bool = {
-    val distance = shortestSolutionDistance(board, phase)
+  pure def solutionDistanceObeysBellman(board: List[bool], progress: Progress): bool = {
+    val distance = shortestSolutionDistance(board, progress)
     and {
       distance >= 0 and distance <= 6,
-      (distance == 0) == isAtPhaseGoal(board, phase),
+      (distance == 0) == isAtProgressGoal(board, progress),
       distance == 0 or TILES.exists(tile =>
-        shortestSolutionDistance(toggleMove(board, tile), phase) == distance - 1),
+        shortestSolutionDistance(toggleMove(board, tile), progress) == distance - 1),
       TILES.forall(tile =>
-        shortestSolutionDistance(toggleMove(board, tile), phase) >= distance - 1),
+        shortestSolutionDistance(toggleMove(board, tile), progress) >= distance - 1),
     }
   }
 
   pure def applyPress(state: PuzzleState, tile: int): PuzzleState = {
     val nextBoard = toggleMove(state.board, tile)
-    val nextPhase = advancePhase(state.phase, nextBoard)
+    val nextProgress = advanceProgress(state.progress, nextBoard)
     {
       board: nextBoard,
-      phase: nextPhase,
-      atPhaseGoal: isAtPhaseGoal(nextBoard, nextPhase),
-      solutionDistance: shortestSolutionDistance(nextBoard, nextPhase),
+      progress: nextProgress,
     }
   }
 
   pure def applyCustomTile(state: PuzzleState, tile: int): PuzzleState = {
     val nextBoard = toggleCustom(state.board, tile)
-    val nextPhase = phaseForNewRun(nextBoard)
+    val nextProgress = progressForNewRun(nextBoard)
     {
       board: nextBoard,
-      phase: nextPhase,
-      atPhaseGoal: isAtPhaseGoal(nextBoard, nextPhase),
-      solutionDistance: shortestSolutionDistance(nextBoard, nextPhase),
+      progress: nextProgress,
     }
   }
 
-  pure def sameRememberedTarget(before: Phase, after: Phase): bool =
+  pure def sameRememberedTarget(before: Progress, after: Progress): bool =
     match before {
-      | Initial => true
-      | PhaseOne(target) =>
+      | SeekingFirstUniform => true
+      | SeekingOpposite(target) =>
           match after {
-            | PhaseOne(nextTarget) => target == nextTarget
-            | PhaseTwo(nextTarget) => target == nextTarget
-            | Initial => false
+            | SeekingOpposite(nextTarget) => target == nextTarget
+            | OppositeReached(nextTarget) => target == nextTarget
+            | SeekingFirstUniform => false
           }
-      | PhaseTwo(target) =>
+      | OppositeReached(target) =>
           match after {
-            | PhaseTwo(nextTarget) => target == nextTarget
+            | OppositeReached(nextTarget) => target == nextTarget
             | _ => false
           }
     }
@@ -164,9 +163,7 @@ module puzzle {
   action init: bool =
     puzzleState' = {
       board: INITIAL_BOARD,
-      phase: phaseForNewRun(INITIAL_BOARD),
-      atPhaseGoal: false,
-      solutionDistance: shortestSolutionDistance(INITIAL_BOARD, phaseForNewRun(INITIAL_BOARD)),
+      progress: progressForNewRun(INITIAL_BOARD),
     }
 
   action Press: bool = {
@@ -183,9 +180,7 @@ module puzzle {
   action Reset: bool =
     puzzleState' = {
       board: INITIAL_BOARD,
-      phase: phaseForNewRun(INITIAL_BOARD),
-      atPhaseGoal: false,
-      solutionDistance: shortestSolutionDistance(INITIAL_BOARD, phaseForNewRun(INITIAL_BOARD)),
+      progress: progressForNewRun(INITIAL_BOARD),
     }
 
   action step: bool = any {
@@ -199,52 +194,45 @@ module puzzle {
     puzzleState.board.indices().forall(i => i.in(TILES)),
   }
 
-  val phaseStateIsConsistent: bool =
-    match puzzleState.phase {
-      | Initial => not(isUniform(puzzleState.board))
-      | PhaseOne(target) =>
+  val progressStateIsConsistent: bool =
+    match puzzleState.progress {
+      | SeekingFirstUniform => not(isUniform(puzzleState.board))
+      | SeekingOpposite(target) =>
           not(isUniform(puzzleState.board)) or puzzleState.board.nth(0) != target
-      | PhaseTwo(_) => true
+      | OppositeReached(_) => true
     }
 
-  val phaseGoalIsCorrect: bool =
-    puzzleState.atPhaseGoal == isAtPhaseGoal(puzzleState.board, puzzleState.phase)
-
-  val solutionDistanceIsMinimal: bool =
-    puzzleState.solutionDistance == shortestSolutionDistance(puzzleState.board, puzzleState.phase)
-
-  val solutionIsReachable: bool = puzzleState.solutionDistance <= 6
+  val solutionIsReachable: bool =
+    shortestSolutionDistance(puzzleState.board, puzzleState.progress) <= 6
 
   val rememberedTargetIsStable: bool =
     TILES.forall(tile => {
       val nextState = applyPress(puzzleState, tile)
-      sameRememberedTarget(puzzleState.phase, nextState.phase)
+      sameRememberedTarget(puzzleState.progress, nextState.progress)
     })
 
   val puzzleInvariant: bool = and {
     stateIsWellFormed,
-    phaseStateIsConsistent,
-    phaseGoalIsCorrect,
-    solutionDistanceIsMinimal,
+    progressStateIsConsistent,
     solutionIsReachable,
     rememberedTargetIsStable,
   }
 
   val firstUniformReached: bool =
-    match puzzleState.phase {
-      | PhaseOne(_) => isUniform(puzzleState.board)
+    match puzzleState.progress {
+      | SeekingOpposite(_) => isUniform(puzzleState.board)
       | _ => false
     }
 
   val oppositeReached: bool =
-    match puzzleState.phase {
-      | PhaseTwo(target) => isUniform(puzzleState.board) and puzzleState.board.nth(0) == target
+    match puzzleState.progress {
+      | OppositeReached(target) => isUniform(puzzleState.board) and puzzleState.board.nth(0) == target
       | _ => false
     }
 
   val restorationNeeded: bool =
-    match puzzleState.phase {
-      | PhaseTwo(_) => not(isUniform(puzzleState.board))
+    match puzzleState.progress {
+      | OppositeReached(_) => not(isUniform(puzzleState.board))
       | _ => false
     }
 }

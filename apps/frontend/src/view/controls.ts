@@ -7,13 +7,14 @@ import {
   type Message,
 } from '../message'
 import type { Model } from '../model'
-import { tiles } from '../model'
+import { replayRun, tiles } from '../model'
 
 const customSetupView = (
   model: Model,
   h: HtmlBuilder<Message>,
-): Html =>
-  h.div(
+): Html => {
+  const { gameState } = replayRun(model.run)
+  return h.div(
     [h.Class('custom-setup')],
     [
       h.h3([], ['Custom Setup Mode']),
@@ -24,7 +25,7 @@ const customSetupView = (
       h.div(
         [h.Class('custom-grid')],
         tiles.map(tile => {
-          const isActive = model.gameState[tile.id]
+          const isActive = gameState[tile.id]
           return h.button(
             [
               h.Key(String(tile.id)),
@@ -43,6 +44,7 @@ const customSetupView = (
       ),
     ],
   )
+}
 
 export const controlsView = (
   model: Model,

@@ -18,6 +18,7 @@ import {
   decodeTileIndex,
   initialModel,
   possibleMoves,
+  replayRun,
   type Model,
   type TileIndex,
 } from '../../frontend/src/model'
@@ -61,16 +62,16 @@ const distanceToFalse = distanceTable('DISTANCE_TO_FALSE')
 const distanceToTrue = distanceTable('DISTANCE_TO_TRUE')
 const distanceToUniform = distanceTable('DISTANCE_TO_UNIFORM')
 
-const AbstractPhase = z.discriminatedUnion('_tag', [
-  z.object({ _tag: z.literal('Initial') }),
-  z.object({ _tag: z.literal('PhaseOne'), targetValue: z.boolean() }),
-  z.object({ _tag: z.literal('PhaseTwo'), targetValue: z.boolean() }),
+const AbstractProgress = z.discriminatedUnion('_tag', [
+  z.object({ _tag: z.literal('SeekingFirstUniform') }),
+  z.object({ _tag: z.literal('SeekingOpposite'), targetValue: z.boolean() }),
+  z.object({ _tag: z.literal('OppositeReached'), targetValue: z.boolean() }),
 ])
 
 const AbstractPuzzleState = z.object({
   board: Board,
-  phase: AbstractPhase,
-  atPhaseGoal: z.boolean(),
+  progress: AbstractProgress,
+  atProgressGoal: z.boolean(),
   solutionDistance: z.number().int().min(0).max(6),
 })
 
@@ -78,10 +79,12 @@ type AbstractPuzzleState = z.infer<typeof AbstractPuzzleState>
 
 const QuintPuzzleState = z.object({
   board: Board,
-  atPhaseGoal: z.boolean(),
-  solutionDistance: ITFBigInt,
-  phase: z.object({
-    tag: z.enum(['Initial', 'PhaseOne', 'PhaseTwo']),
+  progress: z.object({
+    tag: z.enum([
+      'SeekingFirstUniform',
+      'SeekingOpposite',
+      'OppositeReached',
+    ]),
     value: z.unknown(),
   }),
 })
@@ -101,76 +104,100 @@ const applySolution = (
 
 const assertGuidanceReachesModeledGoal = (model: Model): void => {
   const view = deriveGameView(model)
-  const destination = applySolution(model.gameState, view.currentSolution)
+  const { gameState, progress } = replayRun(model.run)
+  const destination = applySolution(gameState, view.currentSolution)
 
-  if (model.phase._tag === 'Initial') {
+  if (progress._tag === 'SeekingFirstUniform') {
     expect(isAllSame(destination)).toBe(true)
     return
   }
 
-  const { targetValue } = model.phase
+  const { targetValue } = progress
   expect(destination.every(value => value === targetValue)).toBe(true)
 }
 
-const formalSolutionDistance = (model: Model): number => {
-  const code = model.gameState.reduce(
+const formalSolutionDistanceFor = (
+  gameState: AbstractPuzzleState['board'],
+  progress: AbstractPuzzleState['progress'],
+): number => {
+  const code = gameState.reduce(
     (encoded, value, index) => encoded + (value ? 2 ** index : 0),
     0,
   )
-  if (model.phase._tag === 'Initial') return distanceToUniform[code] ?? -1
-  const table = model.phase.targetValue ? distanceToTrue : distanceToFalse
+  if (progress._tag === 'SeekingFirstUniform') {
+    return distanceToUniform[code] ?? -1
+  }
+  const table = progress.targetValue ? distanceToTrue : distanceToFalse
   return table[code] ?? -1
+}
+
+const formalSolutionDistance = (model: Model): number => {
+  const { gameState, progress } = replayRun(model.run)
+  return formalSolutionDistanceFor([...gameState], progress)
+}
+
+const withDerivedFacts = (
+  board: AbstractPuzzleState['board'],
+  progress: AbstractPuzzleState['progress'],
+): AbstractPuzzleState => {
+  const allSame = isAllSame(board)
+  return {
+    board,
+    progress,
+    atProgressGoal:
+      progress._tag === 'SeekingFirstUniform'
+        ? allSame
+        : allSame && board[0] === progress.targetValue,
+    solutionDistance: formalSolutionDistanceFor(board, progress),
+  }
 }
 
 const abstractState = (model: Model): AbstractPuzzleState => {
   assertGuidanceReachesModeledGoal(model)
+  const { gameState, progress } = replayRun(model.run)
   return {
-    board: [...model.gameState],
-    phase: model.phase,
-    atPhaseGoal: deriveGameView(model).isAtPhaseGoal,
+    board: [...gameState],
+    progress,
+    atProgressGoal: deriveGameView(model).isAtProgressGoal,
     solutionDistance: deriveGameView(model).currentSolution.length,
   }
 }
 
 const decodeQuintState = (raw: unknown): AbstractPuzzleState => {
   const state = QuintPuzzleState.parse(raw)
-  switch (state.phase.tag) {
-    case 'Initial':
-      return {
-        board: state.board,
-        phase: { _tag: 'Initial' },
-        atPhaseGoal: state.atPhaseGoal,
-        solutionDistance: Number(state.solutionDistance),
-      }
-    case 'PhaseOne':
-      return {
-        board: state.board,
-        phase: {
-          _tag: 'PhaseOne',
-          targetValue: z.boolean().parse(state.phase.value),
+  switch (state.progress.tag) {
+    case 'SeekingFirstUniform':
+      return withDerivedFacts(state.board, { _tag: 'SeekingFirstUniform' })
+    case 'SeekingOpposite':
+      return withDerivedFacts(
+        state.board,
+        {
+          _tag: 'SeekingOpposite',
+          targetValue: z.boolean().parse(state.progress.value),
         },
-        atPhaseGoal: state.atPhaseGoal,
-        solutionDistance: Number(state.solutionDistance),
-      }
-    case 'PhaseTwo':
-      return {
-        board: state.board,
-        phase: {
-          _tag: 'PhaseTwo',
-          targetValue: z.boolean().parse(state.phase.value),
+      )
+    case 'OppositeReached':
+      return withDerivedFacts(
+        state.board,
+        {
+          _tag: 'OppositeReached',
+          targetValue: z.boolean().parse(state.progress.value),
         },
-        atPhaseGoal: state.atPhaseGoal,
-        solutionDistance: Number(state.solutionDistance),
-      }
+      )
   }
 }
 
-const phasesEqual = (
-  left: AbstractPuzzleState['phase'],
-  right: AbstractPuzzleState['phase'],
+const progressEqual = (
+  left: AbstractPuzzleState['progress'],
+  right: AbstractPuzzleState['progress'],
 ): boolean => {
   if (left._tag !== right._tag) return false
-  if (left._tag === 'Initial' || right._tag === 'Initial') return true
+  if (
+    left._tag === 'SeekingFirstUniform' ||
+    right._tag === 'SeekingFirstUniform'
+  ) {
+    return true
+  }
   return left.targetValue === right.targetValue
 }
 
@@ -223,9 +250,9 @@ describe('Puzzle Quint model', () => {
           spec.board.every(
             (value, index) => implementation.board[index] === value,
           ) &&
-          spec.atPhaseGoal === implementation.atPhaseGoal &&
+          spec.atProgressGoal === implementation.atProgressGoal &&
           spec.solutionDistance === implementation.solutionDistance &&
-          phasesEqual(spec.phase, implementation.phase),
+          progressEqual(spec.progress, implementation.progress),
       ),
       nTraces: 50,
       maxSteps: 20,
@@ -255,10 +282,8 @@ describe('Puzzle Quint model', () => {
     while (queue.length > 0) {
       const current = queue.shift()
       if (current === undefined) break
-      const key = JSON.stringify({
-        gameState: current.model.gameState,
-        phase: current.model.phase,
-      })
+      const { gameState, progress } = replayRun(current.model.run)
+      const key = JSON.stringify({ gameState, progress })
       if (visited.has(key)) continue
 
       visited.add(key)
